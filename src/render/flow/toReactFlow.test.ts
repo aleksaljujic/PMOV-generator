@@ -32,3 +32,14 @@ describe('toReactFlow (fixture)', () => {
     expect(r.nodes[0]!.position).toEqual({ x: 0, y: 0 });
   });
 });
+
+describe('toReactFlow handles', () => {
+  it('gives every node static handles', () => {
+    const { nodes } = toReactFlow(FIXTURE_GRAPH, FIXTURE_POSITIONS, new Set(), null);
+    for (const n of nodes) {
+      expect(n.handles).toHaveLength(2);
+      expect(n.handles![0]).toMatchObject({ type: 'target', x: n.width! / 2, y: 0 });
+      expect(n.handles![1]).toMatchObject({ type: 'source', x: n.width! / 2, y: n.height });
+    }
+  });
+});

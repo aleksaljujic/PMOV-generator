@@ -54,7 +54,7 @@ below don't depend on it.
 
 ## Status
 
-Implemented; 16 unit tests green, architecture + tsc clean for the folder. DiagramView.integration.test.tsx waits on T11 layout (stub at finish time). Manual checks pending (see spec/sessions/T05.md).
+Implemented and integrated (layout/geometry real). Bug fix applied: static handles on nodes + stable edges memo so edges no longer disappear; regression tests added. Full suite 199 green, tsc and build OK. Manual checks pending (see spec/sessions/T05.md).
 
 ## Contract notes
 

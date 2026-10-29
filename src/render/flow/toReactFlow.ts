@@ -1,4 +1,5 @@
 // Owned by T05. Contract C08 §DiagramView — pure IR→React Flow mapping.
+import { Position } from '@xyflow/react';
 import type { Edge, Node } from '@xyflow/react';
 import type { DiagramEdge, DiagramGraph, DiagramNode, PositionMap } from '../graph/types';
 
@@ -26,6 +27,12 @@ export function toReactFlow(
     height: node.height,
     draggable: true,
     connectable: false,
+    // Static handles: without them (or `measured`) React Flow treats a freshly created node object as
+    // uninitialized and EdgeWrapper renders nothing until the next ResizeObserver pass.
+    handles: [
+      { type: 'target', position: Position.Top, x: node.width / 2, y: 0, width: 1, height: 1 },
+      { type: 'source', position: Position.Bottom, x: node.width / 2, y: node.height, width: 1, height: 1 },
+    ],
     data: {
       node,
       hasError: errorElementIds.has(node.elementId),

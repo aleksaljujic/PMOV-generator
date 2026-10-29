@@ -145,13 +145,12 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
   );
 
   // Label-only / error / selection changes only rebuild data (no re-layout).
-  const { nodes, edges } = useMemo(
-    () =>
-      graph && positions
-        ? toReactFlow(graph, positions, errorElementIds, selectedElementId)
-        : { nodes: [], edges: [] },
+  const nodes = useMemo(
+    () => (graph && positions ? toReactFlow(graph, positions, errorElementIds, selectedElementId).nodes : []),
     [graph, positions, errorElementIds, selectedElementId],
   );
+  // Edges depend only on the graph, so they stay referentially stable across drags/selection/errors.
+  const edges = useMemo(() => (graph && positions ? toReactFlow(graph, {}, new Set(), null).edges : []), [graph, positions === null]);
 
   const onNodesChange = useCallback((changes: NodeChange<Node<PmovNodeData>>[]) => {
     const moves = changes.filter((c) => c.type === 'position' && c.position);

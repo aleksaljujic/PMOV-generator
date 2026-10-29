@@ -59,3 +59,14 @@ Mode: all agents run in the same working tree. They don't conflict because each 
 - T09 resume finished. **Wave 1 complete.** Orchestrator verified: `vitest run` 196/196 tests (24 files), `npm run build` succeeds (warning: chunk > 500 kB, from elkjs + CodeMirror), no `not implemented` stubs left in code, README.md present.
 - Not verifiable without a browser (left for T10): editor↔diagram selection sync, drag persistence, PNG export, split-pane drag, layout below 900px, reload persistence, visual FON notation.
 - Orchestrator compiled a user-requested library example (objects, spec, slab, recursive veza, 2 agregacije, veza on an agregacija): 0 diagnostics. Two RM points for T10/user: (a) the recursive-veza FK is suffixed with the *other* side's mapping name (`BrojČlanske_Preporučuje` on the `PreporučenOd` holder), which C04 §6 leaves ambiguous; (b) an agregacija's own `#` attribute (`DatumPozajmice#`) is not part of its primary key, because C04 §2 only uses component keys.
+- Wave 1 committed as `e69970c`. T10 waiting for the user's go-ahead.
+
+## Bug fixes after Wave 1
+
+| Session | Task | Folder | Bug | Started | Finished | Result |
+|---|---|---|---|---|---|---|
+| agent-T05 (reopened) | React Flow view | `src/render/flow/` | Edges sometimes disappear | 2026-10-29 | 2026-10-29 | ✅ fixed (Sonnet 5.5): static `handles` + stable edge memo; regression test |
+
+- User report: "sometimes connections disappear". Orchestrator diagnosis: `toReactFlow` rebuilds React Flow nodes without `measured`/`handles` on every positions/selection/error change, so `parseHandles` (`@xyflow/system` dist line 1641) resets `handleBounds` to `undefined`. Then `isNodeInitialized` fails, `getEdgePosition` returns null, and the edge isn't rendered until the node is re-measured. Fix: give nodes static `handles` in `toReactFlow`. T05 reopened.
+- T05 fix verified by the orchestrator. The new `DiagramView.edges.integration.test.tsx` **fails without the fix** (0/27 edges after a prop change) and passes with it. Full suite 199/199, `tsc` clean, build OK.
+- Found in the working tree, not made by this session: examples `biblioteka` and `proizvodnja` added to `src/examples`, and a C06/T12 geometry change for a recursive veza stacked above/below its object, both logged in CHANGELOG. Left uncommitted for the user to review.
