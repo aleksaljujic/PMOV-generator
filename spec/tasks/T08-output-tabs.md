@@ -42,8 +42,8 @@ T03. One `tabs.integration.test.tsx` uses the real generator.
 
 ## Status
 
-_not started_
+Implemented; 10 mocked tests green; integration test pending T03 (rm still stubbed). See spec/sessions/T08.md.
 
 ## Contract notes
 
-_none_
+none

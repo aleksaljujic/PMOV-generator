@@ -40,8 +40,8 @@ block highlighting for diagram → editor sync, and cursor reporting for editor 
 
 ## Status
 
-_not started_
+Done. 5 jsdom tests pass; typecheck clean for src/ui/editor. No browser/dev-harness check done (jsdom only). See spec/sessions/T07.md.
 
 ## Contract notes
 
-_none_
+None.

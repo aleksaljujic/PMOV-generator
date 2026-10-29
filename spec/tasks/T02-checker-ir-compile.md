@@ -56,8 +56,8 @@ AST builder helper in your test folder). Tests that go through `compile()` live 
 
 ## Status
 
-_not started_
+Done. All E01-E12/W01-W04, IR builder, compile(), ERROR_FIXTURES. 44 tests pass (17 unit, 27 integration). See spec/sessions/T02.md.
 
 ## Contract notes
 
-_none_
+No changes proposed. Interpretations (missing cardinality -> E03/E08, role in agregacija -> E12) are in spec/sessions/T02.md.

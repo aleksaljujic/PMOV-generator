@@ -13,10 +13,33 @@ export interface PmovEdgeData extends Record<string, unknown> {
 }
 
 export function toReactFlow(
-  _graph: DiagramGraph,
-  _positions: PositionMap,
-  _errorElementIds: ReadonlySet<string>,
-  _selectedElementId: string | null,
+  graph: DiagramGraph,
+  positions: PositionMap,
+  errorElementIds: ReadonlySet<string>,
+  selectedElementId: string | null,
 ): { nodes: Node<PmovNodeData>[]; edges: Edge<PmovEdgeData>[] } {
-  throw new Error('not implemented: T05');
+  const nodes: Node<PmovNodeData>[] = graph.nodes.map((node) => ({
+    id: node.id,
+    type: node.type,
+    position: positions[node.id] ?? { x: 0, y: 0 },
+    width: node.width,
+    height: node.height,
+    draggable: true,
+    connectable: false,
+    data: {
+      node,
+      hasError: errorElementIds.has(node.elementId),
+      selected: selectedElementId !== null && node.elementId === selectedElementId,
+    },
+  }));
+  const edges: Edge<PmovEdgeData>[] = graph.edges.map((edge) => ({
+    id: edge.id,
+    type: 'pmov',
+    source: edge.source,
+    target: edge.target,
+    selectable: false,
+    focusable: false,
+    data: { edge },
+  }));
+  return { nodes, edges };
 }

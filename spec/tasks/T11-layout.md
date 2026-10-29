@@ -49,8 +49,9 @@ a slab, an agregacija, a spec with 4 subtypes, a recursive veza, and attributes.
 
 ## Status
 
-_not started_
+Done. 20 tests pass (unit + integration on MAIN/SPEC examples), architecture and tsc clean. See spec/sessions/T11.md.
 
 ## Contract notes
 
-_none_
+Spacing constants: NODE_GAP 60 (horizontal between inflated boxes), LAYER_GAP 90 (vertical between layers), attribute gap 36-100
+(default 36 from outline), attribute pitch pad 8, MARGIN 20. Nodes in one layer share top y. No contract changes proposed.

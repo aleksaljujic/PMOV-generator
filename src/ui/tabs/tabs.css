@@ -1,0 +1,11 @@
+.pmov-tabs-root { padding: 12px; overflow: auto; height: 100%; box-sizing: border-box; }
+.pmov-tabs-empty { padding: 16px; color: #666; }
+.pmov-tabs-table { border-collapse: collapse; }
+.pmov-tabs-table th, .pmov-tabs-table td { border: 1px solid #ccc; padding: 4px 10px; text-align: left; }
+.pmov-tabs-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.pmov-tabs-dg0 { border: 0; padding: 0; margin: 0; display: flex; gap: 10px; align-items: center; }
+.pmov-tabs-dg0 legend { float: left; padding: 0 8px 0 0; }
+.pmov-tabs-relation { font-family: ui-monospace, monospace; margin: 4px 0; }
+.pmov-tabs-nullable { color: #888; cursor: help; }
+.pmov-tabs-feedback { color: #2a7a2a; font-size: 0.9em; }
+.pmov-tabs-sql { font-family: ui-monospace, monospace; margin: 0; white-space: pre; }

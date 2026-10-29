@@ -54,8 +54,8 @@ below don't depend on it.
 
 ## Status
 
-_not started_
+Implemented; 16 unit tests green, architecture + tsc clean for the folder. DiagramView.integration.test.tsx waits on T11 layout (stub at finish time). Manual checks pending (see spec/sessions/T05.md).
 
 ## Contract notes
 
-_none_
+No proposals.

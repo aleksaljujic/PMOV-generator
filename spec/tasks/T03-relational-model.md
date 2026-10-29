@@ -40,8 +40,8 @@ No React; imports only from `src/lang` (index) and `./types`.
 
 ## Status
 
-_not started_
+Done 2026-10-29. All steps implemented in src/rm; 18 tests green; typecheck clean for src/rm. See spec/sessions/T03.md.
 
 ## Contract notes
 
-_none_
+None. Ambiguity resolved: for collision renaming of a veza FK, the mapping name of the other (referenced) participant line is used.

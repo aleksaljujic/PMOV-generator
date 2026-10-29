@@ -47,8 +47,8 @@ Cover the list in C02 §Required test coverage, plus:
 
 ## Status
 
-_not started_
+Done. 23 tests in src/lang/syntax pass; architecture test and typecheck clean for this folder. See spec/sessions/T01.md.
 
 ## Contract notes
 
-_Record any clarification of C02 you had to make (also append it to C02 + CHANGELOG)._
+No contract changes needed. Clarifications (implementation choices): unknown chars -> S03 wherever a token is expected; one participant per line; `{` may follow the block name on the next line; `_` rejected only as non-veza block name.

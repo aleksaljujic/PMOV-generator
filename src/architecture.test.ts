@@ -119,6 +119,8 @@ describe('architecture (C00)', () => {
       for (const spec of importsOf(f.code)) {
         if (!spec.startsWith('.')) continue;
         const target = resolveModule(f.abs, spec);
+        // Pure data (examples, golden fixtures) is allowed: the contracts require lang tests to use it.
+        if (FREE_PREFIXES.some((p) => target.startsWith(p))) continue;
         if (!target.startsWith('lang/')) violations.push(`${f.rel} imports ${target}`);
       }
     }

@@ -38,7 +38,7 @@ routes. Every renderer and the layout read from this.
 
 ## Status
 
-_not started_
+Done. 11 tests pass, tsc clean in folder. See spec/sessions/T04.md.
 
 ## Contract notes
 

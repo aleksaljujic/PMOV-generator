@@ -52,8 +52,8 @@ All the geometry tests in C06 §Required tests, plus:
 
 ## Status
 
-_not started_
+Done. 14 tests pass (src/render/geometry/index.test.ts), architecture test passes. See spec/sessions/T12.md.
 
 ## Contract notes
 
-_none_
+C06 could specify label x/y semantics: we return x as the text-anchor x (near-line edge for start/end, center for middle) and y as vertical center.

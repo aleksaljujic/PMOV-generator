@@ -40,8 +40,8 @@ Pure helpers (`escapeXml`, bounding box, per-type node shape drawing) get unit t
 
 ## Status
 
-_not started_
+Done. 17 tests pass (10 unit, 7 integration), architecture and tsc clean. Sample output: spec/sessions/T06-main-example.svg. svgToPngBlob not exercised in a real browser. Log: spec/sessions/T06.md.
 
 ## Contract notes
 
-_none_
+No changes proposed. Implementation note: label text uses `dy="0.35em"` with `y` as the vertical centre.

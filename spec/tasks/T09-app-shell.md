@@ -48,8 +48,8 @@ persistence, and all the sync between them — using only the component/function
 
 ## Status
 
-_not started_
+Done. All steps implemented; 10 shell tests pass, full suite 196/196, build OK. Browser-only behaviour unverified (see spec/sessions/T09.md).
 
 ## Contract notes
 
-_none_
+No changes proposed. Additive: storage.ts also exports loadEditorWidth/saveEditorWidth.

@@ -85,7 +85,8 @@ Run one agent's tests: `npx vitest run src/rm`.
 
 - **No React** in `src/lang/**`, `src/rm/**`, `src/render/{graph,layout,geometry,svg}/**`, `src/examples/**`,
   `src/fixtures/**`: they must not import `react`, `react-dom`, `@xyflow/react`, `codemirror`, `@codemirror/*`.
-- `src/lang/**` imports nothing outside `src/lang/`.
+- `src/lang/**` imports nothing outside `src/lang/`, except the pure-data folders `src/examples` and `src/fixtures`
+  (needed by tests).
 - A file never imports another agent's folder except through that folder's `index.ts` or a frozen contract file
   (see the table above). `src/fixtures` and `src/examples` may be imported by anyone.
 - `src/render/{graph,layout,geometry,svg}` never import `src/render/flow` or `src/ui`.

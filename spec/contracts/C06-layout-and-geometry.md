@@ -93,6 +93,11 @@ anchor point at ~18% of the polyline length measured from the source end, but at
 text does not overlap the line. Pick the perpendicular side deterministically (e.g. left of the direction of travel,
 flipped if that side points into the source node). `anchor` tells renderers how to align the text.
 
+**Label coordinates (clarification from T12, additive):** `label.x` is the SVG `text-anchor` position: for
+`'start'`/`'end'` it is the text edge nearest the line, and for `'middle'` it is the text center. `label.y` is the
+**vertical center** of the text. Renderers must center vertically: SVG `dominant-baseline="central"`. In React Flow /
+HTML, use a `translate(-0%/-50%/-100%, -50%)` that matches the anchor.
+
 ### Arrow rule
 
 Triangle of `ARROW_LENGTH × ARROW_WIDTH` (C05 style) with its tip exactly on the target outline, pointing along the
