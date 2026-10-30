@@ -12,6 +12,8 @@ specializations (`specijalizacija`). Each participant of a relationship carries 
 
 ## The DSL
 
+Full syntax reference for students: [docs/syntax.md](docs/syntax.md).
+
 Every construct is a block:
 
 ```
@@ -159,3 +161,91 @@ import { renderSvg } from './src/render/svg';
 const svg: string = renderSvg('objekat A { Id# : long }\n'); // standalone SVG markup, no DOM needed
 // renderSvgAsync(source) does the same with the ELK layout.
 ```
+
+## Domains and constraints
+
+Named domains are declared once and used as attribute types; the "Domeni" tab shows the domain structure, and the
+"Ograničenja" tab shows referential actions (INSERT / UPDATE / DELETE per foreign key) and general cross-table
+conditions. Both tabs can be edited in Tekst and Interaktivno mode. See the `domeni` example.
+
+```
+domen Starost : short Between 15,65
+domen Naziv   : string(40)
+
+objekat Radnik { Mlb# : long NotNull, ImeR : Naziv, Starost : Starost }
+
+ograničenje RadnikUOdeljenju {
+  Radnik(SifOd) -> Odeljenje
+  Odeljenje : update cascades, delete restricted
+}
+
+ograničenje PlataUOpsegu {
+  uslov: Radnik.Plata <= 10000
+  Radnik : insert restricted, update restricted
+}
+```
+
+Unlisted foreign key cells keep their defaults. Diagnostics E13-E20, W05 and W06 appear in the error panel; clicking
+one opens the matching tab.
+
+## Interactive mode
+
+Next to the text editor ("Tekst") there is a click-based builder ("Interaktivno"), chosen with the **☰** button at the
+far left of the toolbar (or Ctrl+B / Cmd+B) and remembered in `pmov.mode.v1`. The button opens and closes the editor
+as a left sidebar: open = Tekst, closed = Interaktivno. In Interaktivno mode the editor is hidden: hover or select an object, slab
+or agregacija and use the **+** button (objekat, veza, slab, agregacija, specijalizacija), "+ atribut", double-click
+to rename, click an edge label to change cardinality or mapping name, Delete to remove. "Novi dijagram" starts with
+one placeholder object; Poništi / Ponovi (Ctrl+Z / Ctrl+Shift+Z) undo actions. Every action is a text edit on the
+same DSL source, so switching to Tekst shows the generated DSL. Contract: `spec/contracts/C09-interactive-builder.md`.
+
+## Language
+
+The toolbar has an **SR | EN** switch. It changes every text the program shows (toolbar, tabs, error panel,
+diagnostics, builder) and is remembered in localStorage (`pmov.lang.v1`, default `sr`). It never changes the DSL
+source. The examples menu loads the English version of an example in EN.
+
+The DSL accepts English keywords in both UI languages, and they can be mixed with Serbian ones:
+
+| Serbian | English |
+|---|---|
+| `objekat` | `object` |
+| `veza` | `relationship` |
+| `slab` | `weak` |
+| `specijalizacija` | `specialization` |
+| `agregacija` | `aggregation` |
+| `nadređeni` / `nadredjeni` | `owner` |
+| `nadtip` | `supertype` |
+| `podtip` | `subtype` |
+
+`nadredjeni` (without diacritics) is accepted everywhere `nadređeni` is. The builder writes new blocks with the
+keywords of the selected UI language and leaves existing lines as they are.
+
+## SQL dialects
+
+The SQL tab has a **Dijalekt / Dialect** dropdown (PostgreSQL, Microsoft SQL Server, Oracle). The choice is
+remembered in localStorage (`pmov.sqlDialect.v1`, default `postgres`) and is not reset by loading an example,
+"Novi dijagram", or switching mode or language. **Kopiraj** copies the SQL of the selected dialect.
+
+| | PostgreSQL | SQL Server | Oracle |
+|---|---|---|---|
+| Identifier quoting | `"Name"` | `[Name]` | `"Name"` (case-sensitive) |
+| `long` / `short` | `BIGINT` / `SMALLINT` | `BIGINT` / `SMALLINT` | `NUMBER(19)` / `NUMBER(5)` |
+| `string(n)`, no type | `VARCHAR(n)`, `VARCHAR(255)` | `NVARCHAR(n)` (`MAX` above 4000), `NVARCHAR(255)` | `VARCHAR2(n CHAR)`, `VARCHAR2(255 CHAR)` |
+| Domains | `CREATE DOMAIN` | inlined into columns with a `CHECK` | inlined into columns with a `CHECK` |
+
+Limitations are written into the output as `--` comments, so the SQL stays valid for the target database: SQL Server
+and Oracle have no `CREATE DOMAIN`; unsupported child-side referential actions are marked "requires a trigger";
+SQL Server marks foreign keys that would create multiple cascade paths; Oracle has no `ON UPDATE`. Contract:
+`spec/contracts/C11-sql-dialects.md`.
+
+## JSON import / export
+
+**Izvezi JSON / Export JSON** downloads `pmov-dijagram.json` (`pmov-diagram.json` in English): the DSL `source`, the
+saved node `positions`, the options (`dg0Mode`, `sqlDialect`), the model (IR without spans) and the diagram
+(nodes with coordinates, edges) for external readers. It works even when the source has errors.
+**Uvezi JSON / Import JSON** loads such a file: an invalid or too large (over 5 MB) file shows an error and changes
+nothing; a valid one asks before replacing a different non-empty source, then sets the source, replaces the saved
+positions and applies the options. In Interaktivno mode the import is one history step (Poništi restores the previous
+diagram and positions). A file without `source` is imported from `model`, and the DSL text is generated from it.
+Contract: `spec/contracts/C13-json-interchange.md`.
+# PMOV-generator
