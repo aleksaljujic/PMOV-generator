@@ -1,0 +1,31 @@
+.pmov-combo { display: inline-block; position: relative; }
+.pmov-combo > input {
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  padding-right: 24px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+.pmov-combo > input:focus { cursor: text; }
+.pmov-combo-list {
+  position: fixed;
+  z-index: 10000;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  overflow-y: auto;
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  font-size: 14px;
+}
+.pmov-combo-option { padding: 4px 10px; cursor: pointer; white-space: nowrap; }
+.pmov-combo-option[aria-selected='true'] { font-weight: 600; }
+.pmov-combo-option.is-active { background: #dbeafe; }
+.pmov-combo-option.is-disabled { color: #9ca3af; cursor: not-allowed; }
+.pmov-combo-group { padding: 6px 10px 2px; font-size: 12px; color: #6b7280; text-transform: uppercase; }
+.pmov-combo-empty { padding: 4px 10px; color: #6b7280; font-style: italic; }

@@ -147,13 +147,13 @@ describe('generateSql', () => {
     expect(sql).toContain('"BrojInd" VARCHAR(255) NOT NULL');
   });
   it('foreign keys / cycle', () => {
-    expect(sql).toContain('ALTER TABLE "Radnik" ADD FOREIGN KEY ("SifOd") REFERENCES "Odeljenje" ("SifOd");');
-    expect(sql).toContain('ALTER TABLE "Odeljenje" ADD FOREIGN KEY ("Mlb") REFERENCES "Radnik" ("Mlb");');
+    expect(sql).toContain('ALTER TABLE "Radnik" ADD CONSTRAINT "fk_Radnik_Odeljenje" FOREIGN KEY ("SifOd") REFERENCES "Odeljenje" ("SifOd") ON UPDATE CASCADE ON DELETE RESTRICT;');
+    expect(sql).toContain('ALTER TABLE "Odeljenje" ADD CONSTRAINT "fk_Odeljenje_Radnik" FOREIGN KEY ("Mlb") REFERENCES "Radnik" ("Mlb") ON UPDATE CASCADE ON DELETE RESTRICT;');
     expect(sql.indexOf('CREATE TABLE "Prijava"')).toBeLessThan(sql.indexOf('ALTER TABLE'));
   });
   it('composite FK in relation mode', () => {
     const s = generateSql(generateRelationalModel(MAIN_EXAMPLE_IR, { dg0Mode: 'relation' }));
-    expect(s).toContain('ALTER TABLE "Overe" ADD FOREIGN KEY ("BrojInd", "SifPred") REFERENCES "Prijava" ("BrojInd", "SifPred");');
+    expect(s).toContain('ALTER TABLE "Overe" ADD CONSTRAINT "fk_Overe_Prijava" FOREIGN KEY ("BrojInd", "SifPred") REFERENCES "Prijava" ("BrojInd", "SifPred") ON UPDATE CASCADE ON DELETE RESTRICT;');
   });
   it('nullable FK has no NOT NULL', () => {
     const ir: PmovIR = { elements: [

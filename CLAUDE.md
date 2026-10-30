@@ -29,5 +29,6 @@ npm run build
 ## Conventions
 
 TypeScript strict and `noUncheckedIndexedAccess`. There is no React in `src/lang`, `src/rm`, or
-`src/render/{graph,layout,geometry,svg}`. UI text and diagnostics are in Serbian (Latin script); code, comments and
-the README are in English.
+`src/render/{graph,layout,geometry,svg}`. UI text and diagnostics are in Serbian (Latin script) by default and in
+English when the user picks EN (each folder keeps its strings in its own `strings.ts`); code, comments and the
+README are in English.

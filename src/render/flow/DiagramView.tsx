@@ -9,6 +9,7 @@ import {
 } from '@xyflow/react';
 import type { EdgeTypes, Node, NodeChange, NodeTypes } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import type { Locale } from '../../lang';
 import { layoutDiagram } from '../layout';
 import type { DiagramGraph, Point, PositionMap } from '../graph/types';
 import { FILL, STROKE } from '../style';
@@ -22,15 +23,19 @@ import {
   SpecNode,
   VezaNode,
 } from './nodes';
+import { INTERACTION_KEYS, InteractionContext } from './interaction';
+import type { InteractionProps } from './interaction';
 import { toReactFlow } from './toReactFlow';
 import type { PmovNodeData } from './toReactFlow';
 
 export interface DiagramViewHandle {
   fitView(): void;
   getPositions(): PositionMap;
+  /** C09 (additive): pan so that the element's main node is centred, keeping the zoom. */
+  centerOnElement(elementId: string): void;
 }
 
-export interface DiagramViewProps {
+interface DiagramViewBaseProps {
   graph: DiagramGraph | null;
   savedPositions: PositionMap;
   layoutNonce: number;
@@ -38,7 +43,12 @@ export interface DiagramViewProps {
   selectedElementId: string | null;
   onElementClick(elementId: string): void;
   onNodeMoved(nodeId: string, position: Point): void;
+  /** T19 (additive): UI language of the empty state; default 'sr'. */
+  locale?: Locale;
 }
+
+/** C09 additive props (all optional): see ./interaction. */
+export interface DiagramViewProps extends DiagramViewBaseProps, InteractionProps {}
 
 const nodeTypes: NodeTypes = {
   objekat: ObjekatNode,
@@ -74,7 +84,7 @@ const emptyStyle = {
 const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(function DiagramViewInner(props, ref) {
   const { graph, savedPositions, layoutNonce, errorElementIds, selectedElementId, onElementClick, onNodeMoved } =
     props;
-  const { fitView } = useReactFlow();
+  const { fitView, setCenter, getZoom } = useReactFlow();
   const [positions, setPositions] = useState<PositionMap | null>(null);
   const positionsRef = useRef<PositionMap | null>(null);
   positionsRef.current = positions;
@@ -140,8 +150,14 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
         void fitView({ padding: 0.15, duration: 200 });
       },
       getPositions: () => ({ ...(positionsRef.current ?? {}) }),
+      centerOnElement: (elementId: string) => {
+        const node = graphRef.current?.nodes.find((n) => n.elementId === elementId && n.type !== 'atribut');
+        const pos = node ? positionsRef.current?.[node.id] : undefined;
+        if (!node || !pos) return;
+        void setCenter(pos.x + node.width / 2, pos.y + node.height / 2, { zoom: getZoom(), duration: 250 });
+      },
     }),
-    [fitView],
+    [fitView, setCenter, getZoom],
   );
 
   // Label-only / error / selection changes only rebuild data (no re-layout).
@@ -165,11 +181,28 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
     });
   }, []);
 
+  // Stable while the interactive props are referentially stable; null when none is passed.
+  const interaction = useMemo<InteractionProps | null>(() => {
+    const picked: Record<string, unknown> = {};
+    let any = false;
+    for (const k of INTERACTION_KEYS) {
+      if (props[k] !== undefined) {
+        picked[k] = props[k];
+        any = true;
+      }
+    }
+    return any ? (picked as InteractionProps) : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, INTERACTION_KEYS.map((k) => props[k]));
+
   if (!graph) {
-    return <div style={emptyStyle}>Nema dijagrama</div>;
+    return <div style={emptyStyle}>{props.locale === 'en' ? 'No diagram' : 'Nema dijagrama'}</div>;
   }
 
+  const { onNodeDoubleClick, onCanvasClick } = props;
+
   return (
+    <InteractionContext.Provider value={interaction}>
     <ReactFlow
       nodes={nodes}
       edges={edges}
@@ -178,6 +211,10 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
       onNodesChange={onNodesChange}
       onNodeDragStop={(_e, node) => onNodeMoved(node.id, { x: node.position.x, y: node.position.y })}
       onNodeClick={(_e, node) => onElementClick((node.data as PmovNodeData).node.elementId)}
+      {...(onNodeDoubleClick
+        ? { onNodeDoubleClick: (_e: unknown, node: Node) => onNodeDoubleClick((node.data as PmovNodeData).node), zoomOnDoubleClick: false }
+        : {})}
+      {...(onCanvasClick ? { onPaneClick: () => onCanvasClick() } : {})}
       nodesConnectable={false}
       elementsSelectable={false}
       deleteKeyCode={null}
@@ -189,6 +226,7 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
       <Controls showInteractive={false} />
       <MiniMap pannable zoomable nodeColor={FILL} nodeStrokeColor={STROKE} />
     </ReactFlow>
+    </InteractionContext.Provider>
   );
 });
 

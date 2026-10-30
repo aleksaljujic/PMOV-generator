@@ -1,8 +1,11 @@
 // Spacing constants (px). Documented in spec/tasks/T11-layout.md Contract notes.
 /** Horizontal gap between two (inflated) core boxes in the same layer. */
-export const NODE_GAP = 60;
-/** Vertical gap between layers (between the tallest box of a layer and the top of the next). */
-export const LAYER_GAP = 90;
+export const NODE_GAP = 40;
+
+/** Minimum actual-box gap between S / junction / podtip rows in a specialization block. */
+export const SPEC_GAP = 30;
+/** Base desired edge length (center to center, stress layout). */
+export const EDGE_LENGTH = 160;
 /** Distance from an owner's outline to its attribute pills (first try). */
 export const ATTR_GAP = 36;
 /** Gaps tried in order when attributes would overlap other boxes. */

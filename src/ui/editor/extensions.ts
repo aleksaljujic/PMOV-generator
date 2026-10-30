@@ -1,10 +1,10 @@
 import { type Diagnostic as CmDiagnostic, setDiagnostics } from '@codemirror/lint';
 import { type EditorState, StateEffect, StateField, type TransactionSpec } from '@codemirror/state';
 import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
-import { type Diagnostic, formatDiagnostic } from '../../lang';
+import { type Diagnostic, formatDiagnostic, type Locale } from '../../lang';
 
 /** Map PMOV diagnostics to CodeMirror ones: clamped spans, zero-length widened to 1 char. */
-export function mapDiagnostics(diagnostics: readonly Diagnostic[], docLength: number): CmDiagnostic[] {
+export function mapDiagnostics(diagnostics: readonly Diagnostic[], docLength: number, locale?: Locale): CmDiagnostic[] {
   const out: CmDiagnostic[] = [];
   for (const d of diagnostics) {
     let from = Math.max(0, Math.min(d.span.from, docLength));
@@ -14,13 +14,13 @@ export function mapDiagnostics(diagnostics: readonly Diagnostic[], docLength: nu
       else if (from > 0) from = from - 1;
       else continue; // empty document: nothing to underline
     }
-    out.push({ from, to, severity: d.severity, message: formatDiagnostic(d) });
+    out.push({ from, to, severity: d.severity, message: formatDiagnostic(d, locale) });
   }
   return out;
 }
 
-export function diagnosticsTransaction(state: EditorState, diagnostics: readonly Diagnostic[]): TransactionSpec {
-  return setDiagnostics(state, mapDiagnostics(diagnostics, state.doc.length));
+export function diagnosticsTransaction(state: EditorState, diagnostics: readonly Diagnostic[], locale?: Locale): TransactionSpec {
+  return setDiagnostics(state, mapDiagnostics(diagnostics, state.doc.length, locale));
 }
 
 export const setHighlightRange = StateEffect.define<{ from: number; to: number } | null>();

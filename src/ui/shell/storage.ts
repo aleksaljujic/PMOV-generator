@@ -1,12 +1,17 @@
 // Owned by T09. Contract C08 §App-level pieces. Every access is wrapped in try/catch; failures fall back to defaults.
 import type { PositionMap } from '../../render/graph/types';
-import type { Dg0Mode } from '../../rm/types';
+import type { Locale } from '../../lang';
+import { DEFAULT_SQL_DIALECT, SQL_DIALECTS } from '../../rm/types';
+import type { Dg0Mode, SqlDialect } from '../../rm/types';
 
 export const STORAGE_KEYS = {
   source: 'pmov.source.v1',
   positions: 'pmov.positions.v1',
   dg0Mode: 'pmov.dg0Mode.v1',
   editorWidth: 'pmov.editorWidth.v1',
+  mode: 'pmov.mode.v1',
+  lang: 'pmov.lang.v1',
+  sqlDialect: 'pmov.sqlDialect.v1',
 } as const;
 
 function read(key: string): string | null {
@@ -67,6 +72,14 @@ export function clearPositions(): void {
   remove(STORAGE_KEYS.positions);
 }
 
+export function loadSqlDialect(): SqlDialect {
+  const raw = read(STORAGE_KEYS.sqlDialect);
+  return SQL_DIALECTS.find((d) => d === raw) ?? DEFAULT_SQL_DIALECT;
+}
+export function saveSqlDialect(d: SqlDialect): void {
+  write(STORAGE_KEYS.sqlDialect, d);
+}
+
 export function loadDg0Mode(): Dg0Mode {
   const raw = read(STORAGE_KEYS.dg0Mode);
   return raw === 'relation' || raw === 'fk' ? raw : 'fk';
@@ -84,4 +97,22 @@ export function loadEditorWidth(): number | null {
 }
 export function saveEditorWidth(px: number): void {
   write(STORAGE_KEYS.editorWidth, String(Math.round(px)));
+}
+
+/** Working mode (C09): 'tekst' (default) or 'interaktivno'. */
+export type Mode = 'tekst' | 'interaktivno';
+export function loadMode(): Mode {
+  const raw = read(STORAGE_KEYS.mode);
+  return raw === 'interaktivno' ? 'interaktivno' : 'tekst';
+}
+export function saveMode(m: Mode): void {
+  write(STORAGE_KEYS.mode, m);
+}
+
+/** UI language (spec/fix_editor.md): 'sr' (default) or 'en'; anything else falls back to 'sr'. */
+export function loadLang(): Locale {
+  return read(STORAGE_KEYS.lang) === 'en' ? 'en' : 'sr';
+}
+export function saveLang(l: Locale): void {
+  write(STORAGE_KEYS.lang, l);
 }

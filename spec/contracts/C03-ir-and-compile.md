@@ -104,7 +104,7 @@ export interface CompileResult {
 
 ```ts
 // src/lang/semantic/index.ts   (exported via src/lang)
-export function compile(source: string): CompileResult;   // parse → (if no S-codes) check + buildIr
+export function compile(source: string, options?: LangOptions): CompileResult;   // parse → (if no S-codes) check + buildIr; locale only affects messages (C01 §English messages)
 
 // src/lang/semantic/query.ts   (pure helpers; T00 writes them verbatim, T02 owns them afterwards)
 export function getElement(ir: PmovIR, id: string): IRElement | undefined;

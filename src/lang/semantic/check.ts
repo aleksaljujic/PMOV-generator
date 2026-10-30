@@ -1,7 +1,11 @@
-// Semantic checker: E01–E12, W01–W04. Owned by T02. Contract C01.
+// Semantic checker: E01–E17, W01–W05. Owned by T02, extended by T23. Contract C01.
 import type { AttributeAst, BlockAst, ModelAst, ParticipantAst } from '../ast';
-import type { Diagnostic, DiagnosticCode, SourceSpan } from '../diagnostics';
+import type { Diagnostic, DiagnosticCode, LangOptions, Locale, SourceSpan } from '../diagnostics';
 import { severityOf } from '../diagnostics';
+import { ROLE_KEYWORDS } from '../ast';
+import { messagesFor, type Messages } from './messages';
+import { analyzeConstraints } from './constraints';
+import { buildDomainTable, type DomainTable } from './domains';
 import {
   analyze, attributesOf, parseCard, participantsOf, resolveRef,
   type Analysis, type Entry,
@@ -11,75 +15,73 @@ function mk(code: DiagnosticCode, message: string, span: SourceSpan, elementId: 
   return { code, severity: severityOf(code), message, span, elementId };
 }
 
-function lineText(p: ParticipantAst): string {
+function lineText(p: ParticipantAst, locale: Locale): string {
   const parts: string[] = [];
-  if (p.role) parts.push(p.role.value);
+  if (p.role) parts.push(ROLE_KEYWORDS[locale][p.role.value]);
   parts.push(p.object.text);
   if (p.card) parts.push(`(${p.card.min},${p.card.max})`);
   if (p.mapping) parts.push(p.mapping.text);
   return parts.join(' ');
 }
 
-const ABOUT_CARD = 'DG mora biti 0 ili 1, GG mora biti 1 ili M, i DG ≤ GG.';
-
 /** E02 + E03 for one participant line. */
 function checkRef(
-  a: Analysis, p: ParticipantAst, id: string, needCard: boolean, out: Diagnostic[], missingCode: 'E03' | 'E08' = 'E03',
+  m: Messages, a: Analysis, p: ParticipantAst, id: string, needCard: boolean, out: Diagnostic[], missingCode: 'E03' | 'E08' = 'E03',
   ownerName = '',
 ): void {
   if (!resolveRef(a, p.object.text)) {
-    out.push(mk('E02', `'${p.object.text}' nije deklarisan objekat, slab objekat ni agregacija.`, p.object.span, id));
+    out.push(mk('E02', m.e02(p.object.text), p.object.span, id));
   }
   if (p.card) {
     if (!parseCard(p.card)) {
-      out.push(mk('E03', `neispravna kardinalnost (${p.card.min},${p.card.max}): ${ABOUT_CARD}`, p.card.span, id));
+      out.push(mk('E03', m.e03Invalid(p.card.min, p.card.max), p.card.span, id));
     }
   } else if (needCard) {
     if (missingCode === 'E08') {
-      out.push(mk('E08', `komponenta '${p.object.text}' agregacije '${ownerName}' nema kardinalnost (DG,GG).`, p.object.span, id));
+      out.push(mk('E08', m.e08Card(p.object.text, ownerName), p.object.span, id));
     } else {
-      out.push(mk('E03', `nedostaje kardinalnost (DG,GG) uz '${p.object.text}': ${ABOUT_CARD}`, p.object.span, id));
+      out.push(mk('E03', m.e03Missing(p.object.text), p.object.span, id));
     }
   }
 }
 
-function checkVeza(a: Analysis, b: BlockAst, id: string, out: Diagnostic[]): void {
+function checkVeza(m: Messages, a: Analysis, b: BlockAst, id: string, out: Diagnostic[]): void {
   const ps = participantsOf(b);
   const name = b.name.text;
   if (ps.length !== 2) {
-    out.push(mk('E04', `veza '${name}' ima ${ps.length} učesnika, a veza mora imati tačno 2. Za vezu više objekata koristi 'agregacija'.`, b.name.span, id));
+    out.push(mk('E04', m.e04Count(name, ps.length), b.name.span, id));
   }
   for (const p of ps) {
-    if (p.role) out.push(mk('E04', `učesnik veze ne sme imati ulogu '${p.role.value}'.`, p.role.span, id));
-    checkRef(a, p, id, true, out);
+    if (p.role) out.push(mk('E04', m.e04Role(ROLE_KEYWORDS[m.locale][p.role.value]), p.role.span, id));
+    checkRef(m, a, p, id, true, out);
   }
   for (const at of attributesOf(b)) {
-    out.push(mk('E05', `veza '${name}' ne može imati atribut '${at.name.text}'. Ako je to učesnik, dodaj kardinalnost (DG,GG); za vezu sa atributima koristi 'agregacija'.`, at.name.span, id));
+    out.push(mk('E05', m.e05(name, at.name.text), at.name.span, id));
   }
   // W01
   const [p0, p1] = ps;
   if (ps.length === 2 && p0 && p1 && p0.object.text === p1.object.text && (!p0.mapping || !p1.mapping)) {
-    out.push(mk('W01', `rekurzivna veza '${name}' treba da ima nazive preslikavanja za oba učesnika.`, b.name.span, id));
+    out.push(mk('W01', m.w01(name), b.name.span, id));
   }
 }
 
-function checkSlab(a: Analysis, b: BlockAst, id: string, out: Diagnostic[]): void {
+function checkSlab(m: Messages, a: Analysis, b: BlockAst, id: string, out: Diagnostic[]): void {
   const ps = participantsOf(b);
   const name = b.name.text;
   const owners = ps.filter((p) => p.role?.value === 'nadređeni');
   if (owners.length !== 1 || ps.some((p) => p.role?.value !== 'nadređeni')) {
-    out.push(mk('E06', `slab objekat '${name}' mora imati tačno jednog učesnika 'nadređeni X (DG,GG)'.`, b.name.span, id));
+    out.push(mk('E06', m.e06Owner(name), b.name.span, id));
   }
   if (!attributesOf(b).some((x) => x.isId)) {
-    out.push(mk('E06', `slab objekat '${name}' mora imati bar jedan parcijalni identifikator (#).`, b.name.span, id));
+    out.push(mk('E06', m.e06Id(name), b.name.span, id));
   }
-  for (const p of ps) checkRef(a, p, id, p.role?.value === 'nadređeni', out);
+  for (const p of ps) checkRef(m, a, p, id, p.role?.value === 'nadređeni', out);
 }
 
-function checkSpec(a: Analysis, b: BlockAst, id: string, out: Diagnostic[]): void {
+function checkSpec(m: Messages, a: Analysis, b: BlockAst, id: string, out: Diagnostic[]): void {
   const ps = participantsOf(b);
   const name = b.name.text;
-  const msg = `specijalizacija '${name}' mora imati tačno jedan 'nadtip X (DG,GG)' i bar dva 'podtip Y' (bez kardinalnosti), i ne sme imati atribute.`;
+  const msg = m.e07Base(name);
   const supers = ps.filter((p) => p.role?.value === 'nadtip');
   const subs = ps.filter((p) => p.role?.value === 'podtip');
   if (supers.length !== 1) out.push(mk('E07', msg, b.name.span, id));
@@ -87,38 +89,38 @@ function checkSpec(a: Analysis, b: BlockAst, id: string, out: Diagnostic[]): voi
   for (const p of ps) {
     const r = p.role?.value;
     if (r !== 'nadtip' && r !== 'podtip') {
-      out.push(mk('E07', `${msg} Red '${lineText(p)}' nema ulogu nadtip ni podtip.`, p.span, id));
+      out.push(mk('E07', m.e07Line(msg, lineText(p, m.locale)), p.span, id));
     } else if (r === 'podtip' && p.card) {
-      out.push(mk('E07', `${msg} Podtip '${p.object.text}' ne sme imati kardinalnost.`, p.card.span, id));
+      out.push(mk('E07', m.e07SubCard(msg, p.object.text), p.card.span, id));
     }
     if (r === 'podtip') {
       if (!resolveRef(a, p.object.text)) {
-        out.push(mk('E02', `'${p.object.text}' nije deklarisan objekat, slab objekat ni agregacija.`, p.object.span, id));
+        out.push(mk('E02', m.e02(p.object.text), p.object.span, id));
       }
     } else {
-      checkRef(a, p, id, r === 'nadtip', out);
+      checkRef(m, a, p, id, r === 'nadtip', out);
     }
   }
   for (const at of attributesOf(b)) {
-    out.push(mk('E07', `${msg} Atribut '${at.name.text}' nije dozvoljen.`, at.name.span, id));
+    out.push(mk('E07', m.e07Attr(msg, at.name.text), at.name.span, id));
   }
 }
 
-function checkAgg(a: Analysis, b: BlockAst, id: string, out: Diagnostic[]): void {
+function checkAgg(m: Messages, a: Analysis, b: BlockAst, id: string, out: Diagnostic[]): void {
   const ps = participantsOf(b);
   const name = b.name.text;
   if (ps.length < 2) {
-    out.push(mk('E08', `agregacija '${name}' ima ${ps.length} komponenti, a mora imati bar 2.`, b.name.span, id));
+    out.push(mk('E08', m.e08Count(name, ps.length), b.name.span, id));
   }
   for (const p of ps) {
-    if (p.role) out.push(mk('E12', `red '${lineText(p)}' nije dozvoljen u bloku 'agregacija'.`, p.role.span, id));
-    checkRef(a, p, id, true, out, 'E08', name);
+    if (p.role) out.push(mk('E12', m.e12(lineText(p, m.locale), 'agregacija'), p.role.span, id));
+    checkRef(m, a, p, id, true, out, 'E08', name);
   }
 }
 
-function checkObjekat(b: BlockAst, id: string, out: Diagnostic[]): void {
+function checkObjekat(m: Messages, b: BlockAst, id: string, out: Diagnostic[]): void {
   for (const p of participantsOf(b)) {
-    out.push(mk('E12', `red '${lineText(p)}' nije dozvoljen u bloku 'objekat'.`, p.span, id));
+    out.push(mk('E12', m.e12(lineText(p, m.locale), 'objekat'), p.span, id));
   }
 }
 
@@ -143,7 +145,7 @@ function specInfos(a: Analysis): SpecInfo[] {
 }
 
 /** E09; returns the acyclic "up" graph (podtip → nadtipovi) for E10/E11. */
-function checkCycles(specs: SpecInfo[], out: Diagnostic[]): Map<string, Set<string>> {
+function checkCycles(m: Messages, specs: SpecInfo[], out: Diagnostic[]): Map<string, Set<string>> {
   const up = new Map<string, Set<string>>();
   const pathUp = (from: string, to: string): string[] | null => {
     const seen = new Set<string>();
@@ -165,7 +167,7 @@ function checkCycles(specs: SpecInfo[], out: Diagnostic[]): Map<string, Set<stri
       const back = pathUp(s.sup, sub);
       if (back) {
         const cyc = [sub, ...back];
-        out.push(mk('E09', `ciklična specijalizacija: ${cyc.join(' → ')}.`, s.supSpan!, s.entry.id));
+        out.push(mk('E09', m.e09(cyc), s.supSpan!, s.entry.id));
       } else {
         if (!up.has(sub)) up.set(sub, new Set());
         up.get(sub)!.add(s.sup);
@@ -187,24 +189,36 @@ function transitiveSupers(up: Map<string, Set<string>>, id: string): string[] {
   return order;
 }
 
-function checkAttributes(b: BlockAst, id: string, out: Diagnostic[]): void {
+function checkAttributes(m: Messages, dt: DomainTable, b: BlockAst, id: string, out: Diagnostic[]): void {
   const seen = new Set<string>();
   for (const at of attributesOf(b)) {
-    if (!at.domain) out.push(mk('W02', `atribut '${at.name.text}' nema domen.`, at.name.span, id));
+    if (at.userDomain && !dt.byName.has(at.userDomain.text)) {
+      out.push(mk('E13', m.e13(at.userDomain.text), at.userDomain.span, id));
+    }
+    if (at.length) {
+      const base = at.domain ? at.domain.value : at.userDomain ? dt.byName.get(at.userDomain.text)?.ir.base ?? null : null;
+      if (base !== null && base !== 'string') out.push(mk('E14', m.e14Length(), at.length.span, id));
+    }
+    if (!at.domain && !at.userDomain) out.push(mk('W02', m.w02(at.name.text), at.name.span, id));
     if (seen.has(at.name.text)) {
-      out.push(mk('W04', `atribut '${at.name.text}' je već naveden u bloku '${b.name.text}'.`, at.name.span, id));
+      out.push(mk('W04', m.w04(at.name.text, b.name.text), at.name.span, id));
     }
     seen.add(at.name.text);
   }
 }
 
-export function check(ast: ModelAst): Diagnostic[] {
+export function check(ast: ModelAst, options?: LangOptions): Diagnostic[] {
+  const m = messagesFor(options?.locale);
   const out: Diagnostic[] = [];
   const a = analyze(ast);
 
   for (const d of a.duplicates) {
-    out.push(mk('E01', `ime '${d.block.name.text}' je već deklarisano u redu ${d.earlier.block.name.span.line}.`, d.block.name.span, d.earlier.id));
+    out.push(mk('E01', m.e01(d.block.name.text, d.earlier.block.name.span.line), d.block.name.span, d.earlier.id));
   }
+
+  const dt = buildDomainTable(ast, a, m);
+  out.push(...dt.diagnostics);
+  out.push(...analyzeConstraints(ast, a, m).diagnostics);
 
   const used = new Set<string>();
   for (const { block: b, id } of a.entries) {
@@ -213,17 +227,17 @@ export function check(ast: ModelAst): Diagnostic[] {
       if (r) used.add(r.id);
     }
     switch (b.kind) {
-      case 'objekat': checkObjekat(b, id, out); break;
-      case 'veza': checkVeza(a, b, id, out); break;
-      case 'slab': checkSlab(a, b, id, out); break;
-      case 'specijalizacija': checkSpec(a, b, id, out); break;
-      case 'agregacija': checkAgg(a, b, id, out); break;
+      case 'objekat': checkObjekat(m, b, id, out); break;
+      case 'veza': checkVeza(m, a, b, id, out); break;
+      case 'slab': checkSlab(m, a, b, id, out); break;
+      case 'specijalizacija': checkSpec(m, a, b, id, out); break;
+      case 'agregacija': checkAgg(m, a, b, id, out); break;
     }
-    checkAttributes(b, id, out);
+    checkAttributes(m, dt, b, id, out);
   }
 
   const specs = specInfos(a);
-  const up = checkCycles(specs, out);
+  const up = checkCycles(m, specs, out);
   const subtypes = new Set<string>();
   for (const s of specs) for (const x of s.subs) subtypes.add(x);
 
@@ -231,10 +245,10 @@ export function check(ast: ModelAst): Diagnostic[] {
     const attrs = attributesOf(b);
     if (b.kind === 'objekat') {
       if (!attrs.some((x) => x.isId) && !subtypes.has(id)) {
-        out.push(mk('E10', `objekat '${b.name.text}' nema identifikator (#). Svaki objekat koji nije podtip mora imati identifikator.`, b.name.span, id));
+        out.push(mk('E10', m.e10(b.name.text), b.name.span, id));
       }
       if (!used.has(id)) {
-        out.push(mk('W03', `objekat '${b.name.text}' ne učestvuje ni u jednoj vezi.`, b.name.span, id));
+        out.push(mk('W03', m.w03(b.name.text), b.name.span, id));
       }
     }
     if (subtypes.has(id)) {
@@ -243,7 +257,7 @@ export function check(ast: ModelAst): Diagnostic[] {
         const ids = new Set(attributesOf(sb).filter((x: AttributeAst) => x.isId).map((x) => x.name.text));
         for (const at of attrs) {
           if (ids.has(at.name.text)) {
-            out.push(mk('E11', `podtip '${b.name.text}' ponavlja identifikator '${at.name.text}' nadtipa '${sup}' — podtip ga nasleđuje.`, at.name.span, id));
+            out.push(mk('E11', m.e11(b.name.text, at.name.text, sup), at.name.span, id));
           }
         }
       }

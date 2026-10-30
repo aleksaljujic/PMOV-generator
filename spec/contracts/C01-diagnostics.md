@@ -1,6 +1,7 @@
 # C01 — Source spans and diagnostics
 
-Owner of the file: **T00** (writes it verbatim). Emitters: **T01** (S-codes), **T02** (E/W-codes).
+Owner of the file: **T00** (writes it verbatim). Emitters: **T01** (S-codes), **T02** (E/W-codes); for the English
+messages **T15** (S-codes) and **T16** (E/W-codes), see §English messages.
 Consumers: T07 (lint squiggles), T09 (error panel, red outlines), T05 (via `elementId`).
 
 ## Contract code
@@ -44,7 +45,7 @@ export type DiagnosticCode = SyntaxCode | ErrorCode | WarningCode;
 export interface Diagnostic {
   code: DiagnosticCode;
   severity: Severity;
-  /** Message body in Serbian (Latin), WITHOUT the "greška E04 (red …)" prefix. */
+  /** Message body in the requested locale (default Serbian Latin), WITHOUT the "greška E04 (red …)" prefix. */
   message: string;
   /** Where the squiggle goes. Points at the most specific token (name, cardinality, attribute …). */
   span: SourceSpan;
@@ -56,8 +57,23 @@ export function severityOf(code: DiagnosticCode): Severity {
   return code.startsWith('W') ? 'warning' : 'error';
 }
 
-/** "greška E04 (red 12, kol 1): veza 'Overe' ima 3 učesnika, …" */
-export function formatDiagnostic(d: Diagnostic): string {
+/** Language of UI text and diagnostic messages. Codes, spans and the DSL itself do not depend on it. */
+export type Locale = 'sr' | 'en';
+export const LOCALES: readonly Locale[] = ['sr', 'en'];
+export const DEFAULT_LOCALE: Locale = 'sr';
+
+/** Options accepted by `lex`, `parse` and `compile`; omitted ⇒ Serbian messages. */
+export interface LangOptions {
+  locale?: Locale;
+}
+
+/** sr: "greška E04 (red 12, kol 1): veza 'Overe' ima 3 učesnika, …"
+ *  en: "error E04 (line 12, col 1): relationship 'Overe' has 3 participants, …" */
+export function formatDiagnostic(d: Diagnostic, locale: Locale = DEFAULT_LOCALE): string {
+  if (locale === 'en') {
+    const prefix = d.severity === 'error' ? 'error' : 'warning';
+    return `${prefix} ${d.code} (line ${d.span.line}, col ${d.span.col}): ${d.message}`;
+  }
   const prefix = d.severity === 'error' ? 'greška' : 'upozorenje';
   return `${prefix} ${d.code} (red ${d.span.line}, kol ${d.span.col}): ${d.message}`;
 }
@@ -108,3 +124,53 @@ severity, the span target and the listed facts in the message must stay**. Tests
 
 The main example (C03) must produce **zero errors**; it legitimately produces W02 warnings for
 attributes without a domain.
+
+## English messages (spec/fix_editor.md, CHANGELOG 2026-10-30)
+
+`lex`, `parse` and `compile` take `options?: LangOptions`. With `locale: 'en'` every `message` is in English;
+omitted or `'sr'` gives exactly today's Serbian messages. Code, severity, span, `elementId` and the facts in the
+message (quoted names, numbers, line) are the same in both languages. Keywords inside messages are spelled in the
+message's language (`relationship`, `weak object`, `owner`, `supertype`, `subtype` in English).
+
+`formatDiagnostic(d, 'en')` gives `error E04 (line 12, col 1): …` / `warning W02 (line 3, col 3): …`.
+
+The emitters add the English template for each code to this contract (an additive clarification) as a fourth
+column or a separate table: T15 for S01–S06, T16 for E01–E12 and W01–W04. Examples of the expected style:
+
+| Code | English template |
+|---|---|
+| S04 | `unknown block kind '{word}'. Allowed: object, relationship, weak, specialization, aggregation (or objekat, veza, slab, specijalizacija, agregacija).` |
+| E04 | `relationship '{name}' has {n} participants, but a relationship must have exactly 2. Use 'aggregation' to connect more objects.` |
+| W02 | `attribute '{attr}' has no domain.` |
+
+English templates for S01–S06 (T15, `src/lang/syntax/messages.ts`; `{found}` is `end of file` / `new line` / the token text; `{what}` is one of `attribute name`, `domain`, `',' or end of line`, `object name`, `end of line`, `block name`, `','`, `')'`, `'{'`):
+
+| Code | English template |
+|---|---|
+| S01 | `unexpected symbol '{found}', expected {what}.` |
+| S02 | `unclosed quoted name.` |
+| S03 | `unknown character '{char}'.` |
+| S04 | `unknown block kind '{word}'. Allowed: object, relationship, weak, specialization, aggregation (or objekat, veza, slab, specijalizacija, agregacija).` |
+| S05 | `block '{name}' is not closed — missing '}'.` |
+| S06 | `unknown domain '{word}'. Allowed: long, short, string, date.` |
+
+English templates for E01–E12 and W01–W04 (T16, `src/lang/semantic/messages.ts`; `{min}`/`{max}` are the raw cardinality text; role words in `{line}` are English `owner` / `supertype` / `subtype`):
+
+| Code | English template |
+|---|---|
+| E01 | `name '{name}' is already declared on line {n}.` |
+| E02 | `'{name}' is not a declared object, weak object or aggregation.` |
+| E03 | `invalid cardinality ({min},{max}): min must be 0 or 1, max must be 1 or M, and min ≤ max.` / `missing cardinality (min,max) for '{name}': …same hint…` |
+| E04 | `relationship '{name}' has {n} participants, but a relationship must have exactly 2. Use 'aggregation' to connect more objects.` / `a relationship participant must not have the role '{role}'.` |
+| E05 | `relationship '{name}' cannot have the attribute '{attr}'. If it is a participant, add a cardinality (min,max); for a relationship with attributes use 'aggregation'.` |
+| E06 | `weak object '{name}' must have exactly one participant 'owner X (min,max)'.` / `weak object '{name}' must have at least one partial identifier (#).` |
+| E07 | base: `specialization '{name}' must have exactly one 'supertype X (min,max)' and at least two 'subtype Y' (without cardinality), and must not have attributes.` plus ` Line '{line}' has neither the supertype nor the subtype role.` / ` Subtype '{name}' must not have a cardinality.` / ` Attribute '{attr}' is not allowed.` |
+| E08 | `aggregation '{name}' has {n} components, but must have at least 2.` / `component '{comp}' of aggregation '{name}' has no cardinality (min,max).` |
+| E09 | `cyclic specialization: A → B → A.` |
+| E10 | `object '{name}' has no identifier (#). Every object that is not a subtype must have an identifier.` |
+| E11 | `subtype '{sub}' repeats the identifier '{attr}' of supertype '{sup}' — a subtype inherits it.` |
+| E12 | `line '{line}' is not allowed in an 'object' block.` / `… in an 'aggregation' block.` |
+| W01 | `recursive relationship '{name}' should have mapping names for both participants.` |
+| W02 | `attribute '{attr}' has no domain.` |
+| W03 | `object '{name}' does not take part in any relationship.` |
+| W04 | `attribute '{attr}' is already listed in block '{block}'.` |

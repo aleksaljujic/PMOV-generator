@@ -19,6 +19,11 @@ Source of truth for the product: [`../requrement.md`](../requrement.md).
 | C06 | [C06-layout-and-geometry.md](C06-layout-and-geometry.md) | `layoutDiagram()` (T11); `computeEdgeGeometry()`, outline intersection (T12) | T11 T12 | T05 T06 T09 |
 | C07 | [C07-svg-export.md](C07-svg-export.md) | `graphToSvg()`, `renderSvg()`, PNG export | T06 | T09 |
 | C08 | [C08-ui-components.md](C08-ui-components.md) | React component props: Editor, DiagramView, tabs, ErrorPanel; storage; examples | T05 T07 T08 T09 | T09 |
+| C10 | [C10-domains-and-constraints.md](C10-domains-and-constraints.md) | domains, cross-table constraints: frozen AST/IR/RM additions, check codes E13–E20/W05/W06, builder actions, tab/shell wiring | orchestrator (frozen), T22–T28 | all |
+| C09 | [C09-interactive-builder.md](C09-interactive-builder.md) | `BuilderAction`, `applyBuilderAction`, optional `DiagramViewProps` for the builder, `pmov.mode.v1` | T13 | T13 |
+| C11 | [C11-sql-dialects.md](C11-sql-dialects.md) | SQL dialects: `SqlDialect`, `generateSql(…, dialect)`, SqlTab dropdown, `pmov.sqlDialect.v1` | orchestrator (frozen), T30–T32 | T31 T32 |
+| C13 | [C13-json-interchange.md](C13-json-interchange.md) | JSON file format, `exportDiagramJson` / `parseDiagramJson` / `modelToSource`, toolbar buttons | orchestrator (frozen), T35–T36 | T36 T37 |
+| C12 | [C12-triggers.md](C12-triggers.md) | PostgreSQL triggers in `generateSql`: child-side referential actions, general constraints; no frozen code | orchestrator, T34 | – |
 
 ## Rules
 

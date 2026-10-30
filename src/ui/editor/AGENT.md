@@ -38,3 +38,16 @@ npm run typecheck                 # whole repo must stay green
 - Replace every `not implemented: T07` stub.
 - Fill in **Status** and **Contract notes** at the bottom of your task file.
 - If a contract is wrong or missing something, follow `spec/contracts/README.md` rule 5. Never edit frozen files or other folders.
+
+## Current follow-up task (Wave 4, CHANGELOG 2026-10-30)
+
+**T14**: [`../../../spec/tasks/T14-editor-tab-and-locale.md`](../../../spec/tasks/T14-editor-tab-and-locale.md), spec [`../../../spec/fix_editor.md`](../../../spec/fix_editor.md).
+If you were started for T14, read that task file instead of the original one in "Read first" item 1. Everything else
+in this file still applies.
+
+## Current follow-up task (Wave 7, CHANGELOG 2026-10-30, contract C10)
+
+**T27**: [`../../../spec/tasks/T27-editor-domains-constraints.md`](../../../spec/tasks/T27-editor-domains-constraints.md), contract [`../../../spec/contracts/C10-domains-and-constraints.md`](../../../spec/contracts/C10-domains-and-constraints.md),
+spec [`../../../spec/feature_domain_strucutre.md`](../../../spec/feature_domain_strucutre.md). If you were started for T27, read that task file
+instead of the original one in "Read first" item 1. It overrides older follow-up sections. Everything else in this
+file still applies.

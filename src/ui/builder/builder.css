@@ -1,0 +1,72 @@
+.pmovb { position: absolute; inset: 0; pointer-events: none; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 13px; text-shadow: none; white-space: normal; }
+.pmovb button, .pmovb input, .pmovb select { font: inherit; }
+.pmovb-reveal { visibility: hidden; }
+.react-flow__node:hover .pmovb-reveal, .pmovb-reveal.is-on { visibility: visible; }
+.react-flow__node:has(.pmovb-open) { z-index: 1000 !important; }
+
+.pmovb-plus {
+  position: absolute; left: calc(100% - 11px); top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 1.5px solid #1565c0;
+  background: #fff; color: #1565c0; font-weight: 700; line-height: 1; cursor: pointer; pointer-events: auto;
+}
+.pmovb-plus:hover { background: #1565c0; color: #fff; }
+.pmovb-chip {
+  position: absolute; left: 50%; top: calc(100% - 8px); transform: translateX(-50%); white-space: nowrap;
+  padding: 1px 8px; border-radius: 999px; border: 1px solid #9ca3af; background: #fff; color: #374151;
+  cursor: pointer; pointer-events: auto; font-size: 12px;
+}
+.pmovb-chip:hover { border-color: #1565c0; color: #1565c0; }
+.pmovb-hint { position: absolute; left: 50%; top: calc(100% + 16px); transform: translateX(-50%); white-space: nowrap; font-size: 12px; color: #b45309; pointer-events: none; }
+.pmovb-hint.is-on { visibility: visible; }
+.pmovb-del { position: absolute; left: 50%; top: -22px; transform: translateX(-50%); padding: 0 8px; border-radius: 4px; border: 1px solid #dc2626; background: #fff; color: #dc2626; cursor: pointer; pointer-events: auto; font-size: 12px; }
+
+.pmovb-menu {
+  position: absolute; left: calc(100% + 14px); top: 0; min-width: 150px; padding: 4px 0; z-index: 5;
+  background: #fff; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.18); pointer-events: auto; text-align: left;
+}
+.pmovb-menu button { display: block; width: 100%; padding: 4px 12px; border: 0; background: none; text-align: left; cursor: pointer; white-space: nowrap; color: #111827; }
+.pmovb-menu button:hover { background: #e0ecff; }
+.pmovb-menu .is-danger { color: #dc2626; }
+.pmovb-menu hr { margin: 4px 0; border: 0; border-top: 1px solid #e5e7eb; }
+
+.pmovb-pop {
+  position: absolute; left: 0; top: 100%; margin-top: 6px; z-index: 6; min-width: 230px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px;
+  background: #fff; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.18); pointer-events: auto; text-align: left; color: #111827; font-weight: 400; cursor: default;
+}
+.pmovb-pop label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #4b5563; }
+.pmovb-pop label.row { flex-direction: row; align-items: center; gap: 6px; }
+.pmovb-pop input[type='text'], .pmovb-pop select { padding: 3px 6px; border: 1px solid #9ca3af; border-radius: 4px; background: #fff; color: #111827; }
+.pmovb-pop .buttons { display: flex; gap: 6px; justify-content: flex-end; }
+.pmovb-pop button { padding: 3px 10px; border: 1px solid #9ca3af; border-radius: 4px; background: #fff; cursor: pointer; color: #111827; }
+.pmovb-pop button.primary { background: #1565c0; border-color: #1565c0; color: #fff; }
+.pmovb-pop button.danger { color: #dc2626; border-color: #dc2626; margin-right: auto; }
+.pmovb-pop .cards { display: flex; gap: 4px; }
+.pmovb-pop .cards button.is-current { background: #1565c0; border-color: #1565c0; color: #fff; }
+.pmovb-error { color: #dc2626; font-size: 12px; }
+.pmovb-pop--edge { top: 12px; left: -8px; }
+
+.pmovb-rename {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: max(100%, 120px); z-index: 7; padding: 2px 4px; text-align: center;
+  border: 2px solid #1565c0; border-radius: 4px; background: #fff; color: #111827; pointer-events: auto; font-style: normal;
+}
+.pmovb-rename-error { position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%); white-space: nowrap; z-index: 7; background: #fff; padding: 1px 6px; border-radius: 4px; border: 1px solid #dc2626; }
+.pmovb-pill { position: absolute; inset: 0; pointer-events: auto; cursor: pointer; }
+
+.pmovb-status {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 20; max-width: 90%;
+  padding: 6px 14px; border-radius: 999px; background: #1565c0; color: #fff; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.pmovb-status .reason { margin-left: 10px; color: #fecaca; font-weight: 600; }
+.pmovb-toast { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 20; padding: 6px 14px; border-radius: 6px; background: #dc2626; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.pmovb-modal-backdrop { position: absolute; inset: 0; z-index: 30; background: rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; }
+.pmovb-modal { background: #fff; color: #111827; border-radius: 8px; padding: 16px 20px; min-width: 300px; max-width: 460px; box-shadow: 0 8px 28px rgba(0,0,0,.35); }
+.pmovb-modal h3 { margin: 0 0 8px; font-size: 15px; }
+.pmovb-modal ul { margin: 0 0 12px; padding-left: 18px; max-height: 160px; overflow: auto; }
+.pmovb-modal .buttons { display: flex; gap: 8px; justify-content: flex-end; }
+.pmovb-modal button { padding: 4px 12px; border: 1px solid #9ca3af; border-radius: 4px; background: #fff; cursor: pointer; }
+.pmovb-modal button.danger { background: #dc2626; border-color: #dc2626; color: #fff; }
+
+.pmovb-subform { display: flex; flex-direction: column; gap: 6px; padding: 6px; border: 1px dashed #9ca3af; border-radius: 6px; }
+.pmovb-subform .buttons { display: flex; gap: 6px; justify-content: flex-end; }
+.pmovb-subform button { padding: 3px 10px; border: 1px solid #9ca3af; border-radius: 4px; background: #fff; cursor: pointer; color: #111827; }
+.pmovb-subform button.primary { background: #1565c0; border-color: #1565c0; color: #fff; }

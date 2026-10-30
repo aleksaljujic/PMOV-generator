@@ -15,6 +15,7 @@ import {
   STROKE,
   STROKE_WIDTH,
 } from '../style';
+import { PLACEHOLDER_FILL, useInteraction } from './interaction';
 import type { PmovNodeData } from './toReactFlow';
 
 type PmovNodeProps = NodeProps<Node<PmovNodeData>>;
@@ -27,8 +28,13 @@ function useStroke(d: PmovNodeData): { stroke: string; strokeWidth: number } {
 
 const hiddenHandle = { opacity: 0, pointerEvents: 'none' as const, width: 1, height: 1, minWidth: 0, minHeight: 0 };
 
+const PLACEHOLDER_TYPES = new Set(['objekat', 'slab', 'agregacija']);
+
 function Frame({ d, children }: { d: PmovNodeData; children: ReactNode }) {
   const { width, height } = d.node;
+  const ix = useInteraction();
+  const pick = ix?.pickMode ?? null;
+  const pickValid = pick ? pick.validIds.has(d.node.elementId) && d.node.type !== 'atribut' : false;
   return (
     <>
       <Handle type="target" position={Position.Top} isConnectable={false} style={hiddenHandle} />
@@ -37,17 +43,40 @@ function Frame({ d, children }: { d: PmovNodeData; children: ReactNode }) {
         width={width}
         height={height}
         viewBox={`0 0 ${width} ${height}`}
-        style={{ display: 'block', overflow: 'visible' }}
+        style={{
+          display: 'block',
+          overflow: 'visible',
+          ...(pick ? { opacity: pickValid ? 1 : 0.3, cursor: pickValid ? 'pointer' : 'not-allowed' } : {}),
+        }}
         data-testid={`node-${d.node.id}`}
       >
         {children}
       </svg>
+      {pickValid && (
+        <div
+          data-testid={`pick-${d.node.id}`}
+          style={{
+            position: 'absolute',
+            inset: -4,
+            border: `2px dashed ${SELECTED_STROKE}`,
+            borderRadius: 4,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+      {ix?.renderNodeOverlay && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} data-testid={`overlay-${d.node.id}`}>
+          {ix.renderNodeOverlay(d.node, { selected: d.selected, hasError: d.hasError })}
+        </div>
+      )}
     </>
   );
 }
 
 function Label({ d, size = FONT_SIZE, bold = false }: { d: PmovNodeData; size?: number; bold?: boolean }) {
+  const ix = useInteraction();
   if (d.node.label === '') return null;
+  const placeholder = !!ix?.placeholderIds?.has(d.node.elementId) && PLACEHOLDER_TYPES.has(d.node.type);
   return (
     <text
       x={d.node.width / 2}
@@ -57,7 +86,8 @@ function Label({ d, size = FONT_SIZE, bold = false }: { d: PmovNodeData; size?: 
       fontFamily={FONT_FAMILY}
       fontSize={size}
       fontWeight={bold ? 'bold' : undefined}
-      fill={STROKE}
+      fontStyle={placeholder ? 'italic' : undefined}
+      fill={placeholder ? PLACEHOLDER_FILL : STROKE}
       style={{ userSelect: 'none' }}
     >
       {d.node.label}

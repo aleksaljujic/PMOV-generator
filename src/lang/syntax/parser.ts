@@ -1,30 +1,36 @@
 import {
-  BLOCK_KINDS,
   DOMAINS,
-  ROLES,
+  canonicalBlockKind,
+  canonicalRole,
+  isConditionKeyword,
+  isConstraintBlockKeyword,
+  isDomainDeclKeyword,
   type AttributeAst,
   type AttributeLineAst,
   type BlockAst,
-  type BlockKind,
   type CardinalityAst,
+  type ConstraintBlockAst,
+  type ConstraintLineAst,
+  type DomainDeclAst,
   type Domain,
   type LineAst,
   type ParseResult,
   type ParticipantAst,
-  type Role,
   type NameAst,
   type Token,
 } from '../ast';
-import { joinSpans, type Diagnostic, type DiagnosticCode, type SourceSpan } from '../diagnostics';
+import { joinSpans, type Diagnostic, type DiagnosticCode, type LangOptions, type SourceSpan } from '../diagnostics';
 import { lexWith } from './lexer';
+import { syntaxMessages, type Expected } from './messages';
 import { PositionMap } from './positions';
 
 /** Thrown internally to abandon the current line; always caught inside the parser. */
 class LineAbort extends Error {}
 
-export function parseSource(source: string): ParseResult {
+export function parseSource(source: string, options?: LangOptions): ParseResult {
+  const M = syntaxMessages(options?.locale);
   const pm = new PositionMap(source);
-  const lexed = lexWith(source, pm);
+  const lexed = lexWith(source, pm, options);
   const diagnostics: Diagnostic[] = [...lexed.diagnostics];
   const toks = lexed.tokens;
   let p = 0;
@@ -39,14 +45,14 @@ export function parseSource(source: string): ParseResult {
     diagnostics.push({ code, severity: 'error', message, span, elementId: null });
 
   const describe = (t: Token): string =>
-    t.type === 'eof' ? 'kraj fajla' : t.type === 'newline' ? 'novi red' : t.text;
+    t.type === 'eof' ? M.eof : t.type === 'newline' ? M.newline : t.text;
 
   /** Report S01 (or S03 for unknown characters) on the token. */
-  const unexpected = (t: Token, what: string) => {
+  const unexpected = (t: Token, what: Expected) => {
     if (t.type === 'unknown') {
-      report('S03', `nepoznat znak '${t.text}'.`, t.span);
+      report('S03', M.S03(t.text), t.span);
     } else {
-      report('S01', `neočekivan simbol '${describe(t)}', očekivano ${what}.`, t.span);
+      report('S01', M.S01(describe(t), M.expected[what]), t.span);
     }
   };
 
@@ -60,15 +66,46 @@ export function parseSource(source: string): ParseResult {
     while (!isLineEnd(peek())) next();
   };
 
-  const fail = (t: Token, what: string): never => {
+  const fail = (t: Token, what: Expected): never => {
     unexpected(t, what);
     throw new LineAbort();
+  };
+
+  /** `(` number `)` directly after a type; consumed only when the whole shape is there. */
+  const parseLength = (): { value: number; span: SourceSpan } | null => {
+    if (peek().type === 'lparen' && peek(1).type === 'number' && peek(2).type === 'rparen') {
+      const open = next();
+      const num = next();
+      const close = next();
+      return { value: Number(num.text), span: joinSpans(open.span, close.span) };
+    }
+    return null;
+  };
+
+  /** Free-text rest of the line (stops at newline / eof / depth-0 `}`), trimmed. null when empty. */
+  const readTail = (stopAtRbrace: boolean): { text: string; span: SourceSpan } | null => {
+    let first: Token | null = null;
+    let last: Token | null = null;
+    let depth = 0;
+    for (;;) {
+      const t = peek();
+      if (t.type === 'newline' || t.type === 'eof') break;
+      if (stopAtRbrace && t.type === 'rbrace' && depth === 0) break;
+      if (t.type === 'lparen') depth++;
+      else if (t.type === 'rparen' && depth > 0) depth--;
+      first ??= t;
+      last = t;
+      next();
+    }
+    if (!first || !last) return null;
+    const cspan = sliceSpan(first, last);
+    return { text: source.slice(cspan.from, cspan.to).trim(), span: cspan };
   };
 
   // ---- attribute line ----
   const parseAttribute = (): AttributeAst => {
     const nameTok = peek();
-    if (!isName(nameTok)) fail(nameTok, 'naziv atributa');
+    if (!isName(nameTok)) fail(nameTok, 'attrName');
     next();
     let span = nameTok.span;
     const attr: AttributeAst = {
@@ -96,35 +133,27 @@ export function parseSource(source: string): ParseResult {
       if (d.type !== 'ident') {
         finish();
         pendingAttr = attr;
-        return fail(d, 'domen');
+        return fail(d, 'domain');
       }
       next();
       const known = (DOMAINS as readonly string[]).includes(d.text);
       if (known) {
         attr.domain = { value: d.text as Domain, span: d.span };
       } else {
-        report('S06', `nepoznat domen '${d.text}'. Dozvoljeno: long, short, string, date.`, d.span);
+        attr.userDomain = toName(d);
+        // Any non-built-in identifier is a user domain; the checker reports undeclared ones (E13).
       }
       span = joinSpans(span, d.span);
+      const len = parseLength();
+      if (len) {
+        attr.length = len;
+        span = joinSpans(span, len.span);
+      }
       if (peek().type !== 'comma') {
-        // constraint: rest of line, stopping at a depth-0 "}"
-        let first: Token | null = null;
-        let last: Token | null = null;
-        let depth = 0;
-        for (;;) {
-          const t = peek();
-          if (t.type === 'newline' || t.type === 'eof') break;
-          if (t.type === 'rbrace' && depth === 0) break;
-          if (t.type === 'lparen') depth++;
-          else if (t.type === 'rparen' && depth > 0) depth--;
-          first ??= t;
-          last = t;
-          next();
-        }
-        if (first && last && known) {
-          const cspan = sliceSpan(first, last);
-          attr.constraint = { text: source.slice(cspan.from, cspan.to).trim(), span: cspan };
-          span = joinSpans(span, cspan);
+        const c = readTail(true);
+        if (c) {
+          attr.constraint = c;
+          span = joinSpans(span, c.span);
         }
       }
     }
@@ -146,7 +175,7 @@ export function parseSource(source: string): ParseResult {
           continue;
         }
         if (isLineEnd(t)) break;
-        fail(t, "',' ili kraj reda");
+        fail(t, 'commaOrEol');
       }
     } catch (e) {
       if (!(e instanceof LineAbort)) throw e;
@@ -169,7 +198,7 @@ export function parseSource(source: string): ParseResult {
     let depth = 0;
     for (;;) {
       const t = peek();
-      if (t.type === 'newline' || t.type === 'eof' || t.type === 'rbrace') fail(t, "','");
+      if (t.type === 'newline' || t.type === 'eof' || t.type === 'rbrace') fail(t, 'comma');
       if (t.type === 'comma' && depth === 0) {
         next();
         break;
@@ -182,7 +211,7 @@ export function parseSource(source: string): ParseResult {
     let close: Token;
     for (;;) {
       const t = peek();
-      if (t.type === 'newline' || t.type === 'eof' || t.type === 'rbrace') fail(t, "')'");
+      if (t.type === 'newline' || t.type === 'eof' || t.type === 'rbrace') fail(t, 'rparen');
       if (t.type === 'rparen' && depth === 0) {
         close = next();
         break;
@@ -196,7 +225,7 @@ export function parseSource(source: string): ParseResult {
 
   const isParticipantStart = (): boolean => {
     const t = peek();
-    if (t.type === 'ident' && (ROLES as readonly string[]).includes(t.text)) return true;
+    if (t.type === 'ident' && canonicalRole(t.text) !== null) return true;
     return isName(t) && peek(1).type === 'lparen';
   };
 
@@ -208,12 +237,12 @@ export function parseSource(source: string): ParseResult {
     let mapping: NameAst | null = null;
     let end: SourceSpan = startTok.span;
     try {
-      if (startTok.type === 'ident' && (ROLES as readonly string[]).includes(startTok.text)) {
+      if (startTok.type === 'ident' && canonicalRole(startTok.text) !== null) {
         next();
-        role = { value: startTok.text as Role, span: startTok.span };
+        role = { value: canonicalRole(startTok.text) as NonNullable<ParticipantAst['role']>['value'], span: startTok.span };
       }
       const nameTok = peek();
-      if (!isName(nameTok)) fail(nameTok, 'naziv objekta');
+      if (!isName(nameTok)) fail(nameTok, 'objectName');
       next();
       object = toName(nameTok);
       end = nameTok.span;
@@ -226,7 +255,7 @@ export function parseSource(source: string): ParseResult {
           end = m.span;
         }
       }
-      if (!isLineEnd(peek())) fail(peek(), 'kraj reda');
+      if (!isLineEnd(peek())) fail(peek(), 'eol');
     } catch (e) {
       if (!(e instanceof LineAbort)) throw e;
       skipLine();
@@ -236,7 +265,9 @@ export function parseSource(source: string): ParseResult {
   };
 
   // ---- block ----
-  const isBlockKind = (t: Token): boolean => t.type === 'ident' && (BLOCK_KINDS as readonly string[]).includes(t.text);
+  const isBlockKind = (t: Token): boolean =>
+    t.type === 'ident' &&
+    (canonicalBlockKind(t.text) !== null || isDomainDeclKeyword(t.text) || isConstraintBlockKeyword(t.text));
 
   /** Resync at top level: skip to the next line starting with a block keyword, or past a balanced "}". */
   const resync = () => {
@@ -269,22 +300,22 @@ export function parseSource(source: string): ParseResult {
 
   const parseBlock = (): BlockAst | null => {
     const kindTok = next();
-    const kind = kindTok.text as BlockKind;
+    const kind = canonicalBlockKind(kindTok.text) as NonNullable<ReturnType<typeof canonicalBlockKind>>;
     const nameTok = peek();
     if (!isName(nameTok)) {
-      unexpected(nameTok, 'naziv bloka');
+      unexpected(nameTok, 'blockName');
       resync();
       return null;
     }
     next();
     if (nameTok.type === 'ident' && nameTok.text === '_' && kind !== 'veza') {
-      unexpected(nameTok, 'naziv bloka');
+      unexpected(nameTok, 'blockName');
     }
     // "{" may sit on the next line
     let k = 0;
     while (peek(k).type === 'newline') k++;
     if (peek(k).type !== 'lbrace') {
-      unexpected(peek(), "'{'");
+      unexpected(peek(), 'lbrace');
       resync();
       return null;
     }
@@ -302,7 +333,7 @@ export function parseSource(source: string): ParseResult {
       skipNewlines();
       const t = peek();
       if (t.type === 'eof') {
-        report('S05', `blok '${nameTok.value}' nije zatvoren — nedostaje '}'.`, nameTok.span);
+        report('S05', M.S05(nameTok.value), nameTok.span);
         block.span = joinSpans(kindTok.span, t.span);
         break;
       }
@@ -319,29 +350,230 @@ export function parseSource(source: string): ParseResult {
     return block;
   };
 
+  // ---- domain declaration ----
+  const parseDomainDecl = (): DomainDeclAst | null => {
+    const kw = next();
+    const nameTok = peek();
+    if (!isName(nameTok)) {
+      unexpected(nameTok, 'domainName');
+      skipLine();
+      return null;
+    }
+    next();
+    const decl: DomainDeclAst = {
+      kind: 'domainDecl',
+      keywordSpan: kw.span,
+      name: toName(nameTok),
+      base: null,
+      constraint: null,
+      span: joinSpans(kw.span, nameTok.span),
+    };
+    const colon = peek();
+    if (colon.type !== 'colon') {
+      unexpected(colon, 'colon');
+      skipLine();
+      return decl;
+    }
+    next();
+    decl.span = joinSpans(decl.span, colon.span);
+    const ty = peek();
+    if (ty.type !== 'ident') {
+      unexpected(ty, 'type');
+      skipLine();
+      return decl;
+    }
+    next();
+    const isBuiltin = (DOMAINS as readonly string[]).includes(ty.text);
+    const length = parseLength();
+    let bspan = ty.span;
+    if (length) bspan = joinSpans(bspan, length.span);
+    decl.base = {
+      builtin: isBuiltin ? (ty.text as Domain) : null,
+      name: isBuiltin ? null : toName(ty),
+      length,
+      span: bspan,
+    };
+    decl.span = joinSpans(decl.span, bspan);
+    const c = readTail(false);
+    if (c) {
+      decl.constraint = c;
+      decl.span = joinSpans(decl.span, c.span);
+    }
+    return decl;
+  };
+
+  // ---- constraint block ----
+  const lineHasArrow = (): boolean => {
+    for (let k = 0; ; k++) {
+      const t = peek(k);
+      if (t.type === 'arrow') return true;
+      if (isLineEnd(t)) return false;
+    }
+  };
+
+  const parseConstraintLine = (): ConstraintLineAst | null => {
+    const first = peek();
+    try {
+      if (lineHasArrow()) {
+        if (!isName(first)) fail(first, 'objectName');
+        next();
+        let attrs: NameAst[] | null = null;
+        if (peek().type === 'lparen') {
+          next();
+          attrs = [];
+          for (;;) {
+            const a = peek();
+            if (!isName(a)) fail(a, 'attrName');
+            next();
+            attrs.push(toName(a));
+            const sep = peek();
+            if (sep.type === 'comma') {
+              next();
+              continue;
+            }
+            if (sep.type === 'rparen') {
+              next();
+              break;
+            }
+            fail(sep, 'rparen');
+          }
+        }
+        if (peek().type !== 'arrow') fail(peek(), 'arrow');
+        next();
+        const par = peek();
+        if (!isName(par)) fail(par, 'objectName');
+        next();
+        if (!isLineEnd(peek())) fail(peek(), 'eol');
+        return { kind: 'refHeader', child: toName(first), attrs, parent: toName(par), span: joinSpans(first.span, par.span) };
+      }
+      if (first.type === 'ident' && isConditionKeyword(first.text) && peek(1).type === 'colon') {
+        next();
+        const colon = next();
+        const tail = readTail(true);
+        const textSpan = tail ? tail.span : pm.span(colon.span.to, colon.span.to);
+        return {
+          kind: 'condition',
+          keywordSpan: first.span,
+          text: tail ? tail.text : '',
+          textSpan,
+          span: joinSpans(first.span, tail ? tail.span : colon.span),
+        };
+      }
+      if (isName(first) && peek(1).type === 'colon') {
+        next();
+        const colon = next();
+        const items: Extract<ConstraintLineAst, { kind: 'rule' }>['items'] = [];
+        let end = colon.span;
+        for (;;) {
+          const op = peek();
+          if (isLineEnd(op) || op.type === 'comma') fail(op, 'ruleItem');
+          next();
+          let itemSpan = op.span;
+          let action: { value: string; span: SourceSpan } | null = null;
+          const a = peek();
+          if (!isLineEnd(a) && a.type !== 'comma') {
+            next();
+            action = { value: a.value.toLowerCase(), span: a.span };
+            itemSpan = joinSpans(itemSpan, a.span);
+          }
+          items.push({ op: { value: op.value.toLowerCase(), span: op.span }, action, span: itemSpan });
+          end = itemSpan;
+          const sep = peek();
+          if (sep.type === 'comma') {
+            next();
+            continue;
+          }
+          if (isLineEnd(sep)) break;
+          fail(sep, 'commaOrEol');
+        }
+        return { kind: 'rule', relation: toName(first), items, span: joinSpans(first.span, end) };
+      }
+      return fail(first, 'constraintLine');
+    } catch (e) {
+      if (!(e instanceof LineAbort)) throw e;
+      skipLine();
+      return null;
+    }
+  };
+
+  const parseConstraintBlock = (): ConstraintBlockAst | null => {
+    const kindTok = next();
+    const nameTok = peek();
+    if (!isName(nameTok)) {
+      unexpected(nameTok, 'blockName');
+      resync();
+      return null;
+    }
+    next();
+    let k = 0;
+    while (peek(k).type === 'newline') k++;
+    if (peek(k).type !== 'lbrace') {
+      unexpected(peek(), 'lbrace');
+      resync();
+      return null;
+    }
+    p += k;
+    next();
+    const block: ConstraintBlockAst = {
+      kind: 'ograničenje',
+      kindSpan: kindTok.span,
+      name: toName(nameTok),
+      lines: [],
+      span: kindTok.span,
+    };
+    for (;;) {
+      skipNewlines();
+      const t = peek();
+      if (t.type === 'eof') {
+        report('S05', M.S05(nameTok.value), nameTok.span);
+        block.span = joinSpans(kindTok.span, t.span);
+        break;
+      }
+      if (t.type === 'rbrace') {
+        next();
+        block.span = joinSpans(kindTok.span, t.span);
+        break;
+      }
+      const before = p;
+      const line = parseConstraintLine();
+      if (line) block.lines.push(line);
+      if (p === before) next();
+    }
+    return block;
+  };
+
   const blocks: BlockAst[] = [];
+  const domains: DomainDeclAst[] = [];
+  const constraints: ConstraintBlockAst[] = [];
   for (;;) {
     skipNewlines();
     const t = peek();
     if (t.type === 'eof') break;
     if (!isBlockKind(t)) {
       if (t.type === 'unknown') {
-        report('S03', `nepoznat znak '${t.text}'.`, t.span);
+        report('S03', M.S03(t.text), t.span);
       } else {
-        report(
-          'S04',
-          `nepoznata vrsta bloka '${t.text}'. Dozvoljeno: objekat, veza, slab, specijalizacija, agregacija.`,
-          t.span,
-        );
+        report('S04', M.S04(t.text), t.span);
       }
       next();
       resync();
       continue;
     }
     const before = p;
-    const b = parseBlock();
-    if (b) blocks.push(b);
+    if (isDomainDeclKeyword(t.text)) {
+      const d = parseDomainDecl();
+      if (d) domains.push(d);
+    } else if (isConstraintBlockKeyword(t.text)) {
+      const c = parseConstraintBlock();
+      if (c) constraints.push(c);
+    } else {
+      const b = parseBlock();
+      if (b) blocks.push(b);
+    }
     if (p === before) next();
   }
-  return { ast: { blocks }, diagnostics };
+  const ast: ParseResult['ast'] = { blocks };
+  if (domains.length > 0) ast.domains = domains;
+  if (constraints.length > 0) ast.constraints = constraints;
+  return { ast, diagnostics };
 }

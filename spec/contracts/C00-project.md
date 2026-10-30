@@ -21,6 +21,21 @@ task file, the contracts to read and the files to replace.
 | `src/ui/tabs/` | **T08** Domeni / Relacioni model / SQL tabs | |
 | `src/ui/shell/` | **T09** App, toolbar, split pane, error panel, storage, wiring | also owns root `README.md` |
 | `e2e/` | **T10** integration & acceptance (runs last) | |
+| `src/builder/` | **T13** interactive builder: pure source edits (`applyBuilderAction`) | no React; C09 |
+| `src/interchange/` | **T35** JSON export / import, model → DSL | no React; C13 |
+| `src/ui/builder/` | **T13** interactive builder: diagram overlay UI | same agent; additive edits in `src/ui/shell/`, `src/render/flow/` (CHANGELOG 2026-10-30) |
+| `src/ui/common/` | shared, no single owner | UI widgets used by several UI folders (`Combobox`); import through its `index.ts` (CHANGELOG 2026-10-30) |
+
+Follow-up tasks from [`../fix_editor.md`](../fix_editor.md) reuse these folders: T14 `src/ui/editor/`, T15
+`src/lang/syntax/`, T16 `src/lang/semantic/`, T17 `src/ui/tabs/`, T18 `src/builder/` + `src/ui/builder/`, T19
+`src/ui/shell/` (plus additive edits in `src/render/flow/`), T20 `e2e/`. See `spec/tasks/README.md` Wave 4.
+
+Follow-up tasks from [`../feature_domain_strucutre.md`](../feature_domain_strucutre.md) (contract C10, Wave 7) reuse
+these folders: T22 `src/lang/syntax/`, T23 `src/lang/semantic/`, T24 `src/rm/`, T25 `src/ui/tabs/`, T26 `src/builder/` +
+`src/ui/builder/`, T27 `src/ui/editor/`, T28 `src/ui/shell/`, T29 `e2e/`. New frozen file: `src/fixtures/domains.ts`.
+
+Follow-up tasks from [`../feature_multy_language.md`](../feature_multy_language.md) (contract C11, Wave 8) reuse
+these folders: T30 `src/rm/`, T31 `src/ui/tabs/`, T32 `src/ui/shell/`. New frozen file: `src/fixtures/sql.ts`.
 
 **Frozen (written by T00, changed only via CHANGELOG):** root config files (`package.json`, `tsconfig*.json`,
 `vite.config.ts`, `vitest.config.ts`, `index.html`, `.gitignore`), `src/main.tsx`, `src/architecture.test.ts`,
@@ -42,6 +57,9 @@ task file, the contracts to read and the files to replace.
 | `src/ui/editor` (`index.ts`) | C08 Editor |
 | `src/ui/tabs` (`index.ts`) | C08 tabs |
 | `src/ui/shell` (`index.ts`) | `App` (used only by `src/main.tsx`) |
+| `src/builder` (`index.ts`) | C09 `applyBuilderAction`, `BuilderAction`, helpers |
+| `src/ui/builder` (`index.ts`) | C09 overlay component |
+| `src/interchange` (`index.ts`) + `src/interchange/types.ts` | C13 JSON export / import |
 | `src/examples`, `src/fixtures/*` | examples, golden test data |
 
 Inside its own folder an agent may structure files however it likes. It must keep `index.ts` exporting exactly the
@@ -83,7 +101,7 @@ Run one agent's tests: `npx vitest run src/rm`.
 
 ## Import rules (enforced by `src/architecture.test.ts`)
 
-- **No React** in `src/lang/**`, `src/rm/**`, `src/render/{graph,layout,geometry,svg}/**`, `src/examples/**`,
+- **No React** in `src/lang/**`, `src/rm/**`, `src/render/{graph,layout,geometry,svg}/**`, `src/builder/**`, `src/interchange/**`, `src/examples/**`,
   `src/fixtures/**`: they must not import `react`, `react-dom`, `@xyflow/react`, `codemirror`, `@codemirror/*`.
 - `src/lang/**` imports nothing outside `src/lang/`, except the pure-data folders `src/examples` and `src/fixtures`
   (needed by tests).
@@ -106,4 +124,6 @@ Everything compiles and `npm test` passes from the start.
 
 ## Language of text
 
-UI strings and diagnostics: Serbian Latin (č ć ž š đ). Code, comments, README: English.
+UI strings and diagnostics: Serbian Latin (č ć ž š đ) by default, English when the user selects EN
+(`Locale` in C01). Each folder keeps its UI strings in its own `strings.ts` (`sr` and `en` tables with the same keys).
+Code, comments, README: English.

@@ -52,7 +52,7 @@ export const SPEC_EXAMPLE_IR: PmovIR = {
   ],
 };
 
-/** Strip spans recursively so compile() output can be compared with the fixtures above. */
+/** Strip spans recursively (`span` and every `*Span` key, incl. C10 `headerSpan`/`conditionSpan`) so compile() output can be compared with the fixtures above. */
 export function stripSpans<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value, (k, v) => (k === 'span' || k === 'nameSpan' ? undefined : v))) as T;
+  return JSON.parse(JSON.stringify(value, (k, v) => (k === 'span' || k.endsWith('Span') ? undefined : v))) as T;
 }

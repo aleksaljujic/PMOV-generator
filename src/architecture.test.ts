@@ -18,6 +18,9 @@ const AGENT_FOLDERS = [
   'ui/editor',
   'ui/tabs',
   'ui/shell',
+  'builder',
+  'ui/builder',
+  'interchange',
 ];
 
 /** Frozen contract files anyone may import directly (paths without extension, relative to src). */
@@ -29,6 +32,7 @@ const FROZEN_PUBLIC = new Set([
   'rm/types',
   'render/graph/types',
   'render/style',
+  'interchange/types',
 ]);
 const FREE_PREFIXES = ['examples/', 'fixtures/'];
 
@@ -40,6 +44,8 @@ const NO_REACT_PREFIXES = [
   'render/geometry/',
   'render/svg/',
   'render/style',
+  'builder/',
+  'interchange/',
   'examples/',
   'fixtures/',
 ];

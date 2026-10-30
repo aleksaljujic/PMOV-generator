@@ -9,3 +9,21 @@
 .pmov-tabs-nullable { color: #888; cursor: help; }
 .pmov-tabs-feedback { color: #2a7a2a; font-size: 0.9em; }
 .pmov-tabs-sql { font-family: ui-monospace, monospace; margin: 0; white-space: pre; }
+.pmov-tabs-heading { margin: 12px 0 6px; font-size: 1em; }
+.pmov-tabs-hint { color: #666; margin-bottom: 8px; }
+.pmov-tabs-inherited { color: #888; font-size: 0.9em; }
+.pmov-tabs-clickable { cursor: pointer; }
+.pmov-tabs-highlight { background: #fff6c2; outline: 2px solid #e0b800; }
+.pmov-tabs-form { display: flex; flex-direction: column; gap: 6px; max-width: 480px; margin: 8px 0; padding: 8px; border: 1px solid #ccc; }
+.pmov-tabs-form label { display: flex; flex-direction: column; gap: 2px; }
+.pmov-tabs-checks { display: flex; gap: 12px; align-items: center; }
+.pmov-tabs-checks label { flex-direction: row; align-items: center; }
+.pmov-tabs-suggest { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; flex-wrap: wrap; }
+.pmov-tabs-error { color: #b00020; }
+.pmov-tabs-confirm { border: 1px solid #e0b800; background: #fffbe6; padding: 8px; }
+.pmov-tabs-card { border: 1px solid #ccc; padding: 8px; margin-bottom: 12px; }
+.pmov-tabs-card-title { margin-bottom: 6px; }
+.pmov-tabs-fk, .pmov-tabs-mono { font-family: ui-monospace, monospace; }
+.pmov-tabs-badge { margin-left: 8px; padding: 0 6px; border-radius: 8px; background: #eee; color: #555; font-size: 0.85em; }
+.pmov-tabs-bold { font-weight: bold; }
+.pmov-tabs-na { color: #999; text-align: center; }

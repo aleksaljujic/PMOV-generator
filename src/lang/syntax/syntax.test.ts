@@ -134,11 +134,12 @@ describe('diagnostics', () => {
     expect(r.diagnostics[0]!.message).toContain('A');
     expect(r.ast.blocks[0]!.lines).toHaveLength(1);
   });
-  it('S06 unknown domain keeps attribute', () => {
+  it('unknown type word is a user domain, no S-code (C10: checker reports E13)', () => {
     const r = parse('objekat A {\n X : integer\n Y : long\n}');
-    expect(r.diagnostics.map((d) => d.code)).toEqual(['S06']);
+    expect(r.diagnostics).toEqual([]);
     const a = (r.ast.blocks[0]!.lines[0] as AttributeLineAst).attributes[0]!;
     expect(a.domain).toBeNull();
+    expect(a.userDomain!.text).toBe('integer');
     expect(r.ast.blocks[0]!.lines).toHaveLength(2);
   });
   it('S03 unknown character', () => {

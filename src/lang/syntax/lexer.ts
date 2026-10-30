@@ -1,5 +1,6 @@
 import type { LexResult, Token, TokenType } from '../ast';
-import type { Diagnostic } from '../diagnostics';
+import type { Diagnostic, LangOptions } from '../diagnostics';
+import { syntaxMessages } from './messages';
 import { PositionMap } from './positions';
 
 const IDENT_START = /[\p{L}_]/u;
@@ -15,7 +16,8 @@ const PUNCT: Record<string, TokenType> = {
   '#': 'hash',
 };
 
-export function lexWith(source: string, pm: PositionMap): LexResult {
+export function lexWith(source: string, pm: PositionMap, options?: LangOptions): LexResult {
+  const M = syntaxMessages(options?.locale);
   const tokens: Token[] = [];
   const diagnostics: Diagnostic[] = [];
   const n = source.length;
@@ -61,13 +63,18 @@ export function lexWith(source: string, pm: PositionMap): LexResult {
         diagnostics.push({
           code: 'S02',
           severity: 'error',
-          message: 'nezatvoren naziv pod navodnicima.',
+          message: M.S02,
           span,
           elementId: null,
         });
         push('quoted', i, j, source.slice(i + 1, j));
         i = j;
       }
+      continue;
+    }
+    if (c === '-' && source.charAt(i + 1) === '>') {
+      push('arrow', i, i + 2);
+      i += 2;
       continue;
     }
     const punct = PUNCT[c];
@@ -104,6 +111,6 @@ export function lexWith(source: string, pm: PositionMap): LexResult {
   return { tokens, diagnostics };
 }
 
-export function lex(source: string): LexResult {
-  return lexWith(source, new PositionMap(source));
+export function lex(source: string, options?: LangOptions): LexResult {
+  return lexWith(source, new PositionMap(source), options);
 }

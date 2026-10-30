@@ -17,11 +17,12 @@ export interface LayoutOptions {
   saved?: PositionMap;
 }
 
-/** ELK (layered, direction DOWN, orthogonal routing) on layoutRole==='core' nodes, then attribute placement. */
+/** ELK 'stress' (undirected 2D layout) on layoutRole==='core' nodes, then overlap removal, specialization
+ *  post-processing and attribute placement. */
 export function layoutDiagram(graph: DiagramGraph, options?: LayoutOptions): Promise<PositionMap>;
 
-/** Same contract, no ELK: deterministic layered fallback (longest-path ranks, barycenter ordering). Synchronous —
- *  needed by renderSvg(source): string (C07). */
+/** Same contract, no ELK: deterministic stress-majorization fallback with the same post-processing.
+ *  Synchronous, needed by renderSvg(source): string (C07). */
 export function layoutDiagramSync(graph: DiagramGraph, options?: LayoutOptions): PositionMap;
 
 /** Places every attribute node around its owner; used by both functions above. Attributes with a saved
@@ -34,10 +35,17 @@ Guarantees:
 - Result contains a position for **every** node in the graph (top-left corner), finite numbers, no NaN.
 - Saved position for node id N ⇒ result[N] equals it exactly.
 - Same input ⇒ same output (deterministic).
+- **2D, compact layout (changed 2026-10-29 at the user's request; replaces "layered DOWN").** The layered layout put
+  every objekat in one row and every veza in the next, because all edges point object → connector. The graph is now
+  laid out as **undirected**: each veza, slab and agregacija ends up between its participants, and the bounding box
+  stays roughly balanced (aspect ratio between 1:2.5 and 2.5:1 for every built-in example). Objects must not all
+  share one row.
+- **No overlaps:** core boxes, inflated by their attribute fan plus a gap, never overlap after the overlap-removal pass.
 - Specialization: podtip nodes end up in one row **below** the junction, the junction below the S diamond,
-  the S diamond below the supertype (use ELK layer constraints / ordering as needed).
-- Attributes are not fed to ELK. ELK spacing must leave room for them (e.g. inflate each core node's box by the
-  space its attribute fan needs).
+  the S diamond below the supertype. This is a post-processing step after the 2D layout, followed by overlap removal
+  that moves the whole spec block together.
+- Attributes are not fed to ELK. Leave room for them by inflating each core node's box by the space its
+  attribute fan needs.
 - Attribute placement: fan attributes on the owner's side(s) with the fewest incident core edges, evenly spaced,
   ~30–50px from the owner outline, avoiding overlap with other nodes' boxes when reasonably possible.
 - `layoutDiagram` must work in Node (Vitest) — import `elkjs/lib/elk.bundled.js`.
@@ -83,6 +91,7 @@ export function computeEdgeGeometry(
 | `straight` | `outlineIntersection(source → target center)` → `outlineIntersection(target → source center)` |
 | `loopTop` | source top-center → up to `y = min(source.top, target.top) − 30` → horizontal to target center x → down to target's top vertex |
 | `loopBottom` | mirror of `loopTop` using bottoms (`max(bottom) + 30`) |
+| `loopTop` / `loopBottom`, **stacked** (source and target x-ranges overlap) | `loopTop` = straight line between the facing outlines; `loopBottom` = source left-center → left to `x = min(source.left, target.left) − 30` → vertical to target center y → target's left vertex |
 | `busDown` | source bottom-center → down to `midY = (source.bottom + target.top) / 2` → horizontal to target center x → down to target top-center (arrow tip) |
 
 ### Label rule (the important FON detail)

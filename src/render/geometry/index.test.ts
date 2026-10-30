@@ -118,6 +118,19 @@ describe('computeEdgeGeometry', () => {
     expect(P(bot.points, 3)).toEqual({ x: 350, y: 156 });
   });
 
+  it('recursive veza stacked below its objekat: direct line + loop around the left side', () => {
+    const o = node('o', 'objekat', 144, 64);
+    const v = node('v', 'veza', 180, 90);
+    const ob = boxOf(o, { x: 118, y: 117 });
+    const vb = boxOf(v, { x: 100, y: 347 });
+    const top = computeEdgeGeometry(edge({ route: 'loopTop' }), { node: o, box: ob }, { node: v, box: vb });
+    const bot = computeEdgeGeometry(edge({ route: 'loopBottom' }), { node: o, box: ob }, { node: v, box: vb });
+    expect(top.points).toEqual([{ x: 190, y: 181 }, { x: 190, y: 347 }]);
+    expect(bot.points).toEqual([{ x: 118, y: 149 }, { x: 70, y: 149 }, { x: 70, y: 392 }, { x: 100, y: 392 }]);
+    // the loop stays left of both boxes between its endpoints
+    expect(Math.max(P(bot.points, 1).x, P(bot.points, 2).x)).toBeLessThan(Math.min(ob.x, vb.x));
+  });
+
   it('busDown: 4 axis-aligned points, last vertical down, tip at target top-center', () => {
     const j = node('j', 'junction', 12, 12);
     const p = node('p', 'objekat', 100, 44);

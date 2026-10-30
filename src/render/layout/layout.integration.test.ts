@@ -1,25 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { MAIN_EXAMPLE_IR, SPEC_EXAMPLE_IR } from '../../fixtures/ir';
+import { EXAMPLES } from '../../examples';
+import { compile } from '../../lang';
 import { buildDiagramGraph } from '../graph';
 import type { PositionMap } from '../graph/types';
+import { checkLayout, checkShape, checkSpec } from './__fixtures__/checks';
 import { layoutDiagram, layoutDiagramSync } from './index';
-import { checkLayout, checkSpec } from './layout.test';
 
-describe.each([
-  ['MAIN_EXAMPLE_IR', MAIN_EXAMPLE_IR, false],
-  ['SPEC_EXAMPLE_IR', SPEC_EXAMPLE_IR, true],
-] as const)('layout integration: %s', (_name, ir, hasSpec) => {
+describe.each(EXAMPLES)('layout integration: $id', (ex) => {
+  const ir = compile(ex.source).ir!;
   const g = buildDiagramGraph(ir);
+  const hasSpec = g.nodes.some((n) => n.type === 'spec');
 
-  it('positions all nodes without overlaps (sync and ELK)', async () => {
-    checkLayout(g, layoutDiagramSync(g));
-    checkLayout(g, await layoutDiagram(g));
+  it('sync: positions, no overlaps, spec rows, 2D shape', () => {
+    const r = layoutDiagramSync(g);
+    checkLayout(g, r);
+    if (hasSpec) checkSpec(g, r);
+    checkShape(g, r);
   });
 
-  it('specialization rows', async () => {
-    if (!hasSpec) return;
-    checkSpec(g, layoutDiagramSync(g));
-    checkSpec(g, await layoutDiagram(g));
+  it('ELK: positions, no overlaps, spec rows, 2D shape', async () => {
+    const r = await layoutDiagram(g);
+    checkLayout(g, r);
+    if (hasSpec) checkSpec(g, r);
+    checkShape(g, r);
   });
 
   it('saved positions honoured and output deterministic', async () => {
@@ -33,4 +36,11 @@ describe.each([
     expect(layoutDiagramSync(g)).toEqual(layoutDiagramSync(g));
     expect(await layoutDiagram(g)).toEqual(await layoutDiagram(g));
   });
+});
+
+it('sync layout of a 60-node core graph is fast', () => {
+  const g = buildDiagramGraph(compile(EXAMPLES[3]!.source).ir!);
+  const t = performance.now();
+  layoutDiagramSync(g);
+  expect(performance.now() - t).toBeLessThan(200);
 });

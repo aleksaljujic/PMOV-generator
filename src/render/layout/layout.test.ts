@@ -1,44 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { DiagramGraph, PositionMap } from '../graph/types';
+import type { PositionMap } from '../graph/types';
+import { checkLayout, checkSpec } from './__fixtures__/checks';
 import { makeFixtureGraph } from './__fixtures__/graph';
 import { layoutDiagram, layoutDiagramSync, placeAttributes } from './index';
-
-export function checkLayout(graph: DiagramGraph, pos: PositionMap): void {
-  for (const n of graph.nodes) {
-    const p = pos[n.id];
-    expect(p, n.id).toBeDefined();
-    expect(Number.isFinite(p!.x) && Number.isFinite(p!.y), n.id).toBe(true);
-  }
-  const box = (id: string) => {
-    const n = graph.nodes.find((x) => x.id === id)!;
-    return { x: pos[id]!.x, y: pos[id]!.y, w: n.width, h: n.height };
-  };
-  const hit = (a: ReturnType<typeof box>, b: ReturnType<typeof box>) =>
-    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-  const cores = graph.nodes.filter((n) => n.layoutRole === 'core');
-  const attrs = graph.nodes.filter((n) => n.layoutRole === 'attribute');
-  for (let i = 0; i < cores.length; i++) {
-    for (let j = i + 1; j < cores.length; j++) {
-      expect(hit(box(cores[i]!.id), box(cores[j]!.id)), `${cores[i]!.id} x ${cores[j]!.id}`).toBe(false);
-    }
-    for (const a of attrs) expect(hit(box(cores[i]!.id), box(a.id)), `${cores[i]!.id} x ${a.id}`).toBe(false);
-  }
-}
-
-export function checkSpec(graph: DiagramGraph, pos: PositionMap): void {
-  const specs = graph.nodes.filter((n) => n.type === 'spec');
-  expect(specs.length).toBeGreaterThan(0);
-  for (const s of specs) {
-    const j = graph.nodes.find((n) => n.type === 'junction' && n.elementId === s.elementId)!;
-    const subs = graph.edges.filter((e) => e.source === j.id).map((e) => e.target);
-    const sup = graph.edges.find((e) => e.target === s.id)?.source;
-    const ys = new Set(subs.map((id) => pos[id]!.y));
-    expect(ys.size).toBe(1);
-    expect([...ys][0]!).toBeGreaterThan(pos[j.id]!.y);
-    expect(pos[j.id]!.y).toBeGreaterThan(pos[s.id]!.y);
-    if (sup) expect(pos[s.id]!.y).toBeGreaterThan(pos[sup]!.y);
-  }
-}
 
 describe('layout (fixture)', () => {
   const g = makeFixtureGraph();

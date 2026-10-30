@@ -5,6 +5,7 @@ import { computeEdgeGeometry } from '../geometry';
 import type { Box } from '../geometry';
 import type { DiagramNode } from '../graph/types';
 import { EDGE_FONT_SIZE, FILL, FONT_FAMILY, STROKE, STROKE_WIDTH } from '../style';
+import { useInteraction } from './interaction';
 import type { PmovEdgeData, PmovNodeData } from './toReactFlow';
 
 function endpoint(internal: InternalNode | undefined): { node: DiagramNode; box: Box } | null {
@@ -24,6 +25,7 @@ function endpoint(internal: InternalNode | undefined): { node: DiagramNode; box:
 }
 
 export function PmovEdge({ id, source, target, data }: EdgeProps<Edge<PmovEdgeData>>) {
+  const ix = useInteraction();
   const src = endpoint(useInternalNode(source));
   const tgt = endpoint(useInternalNode(target));
   if (!src || !tgt || !data) return null;
@@ -48,10 +50,25 @@ export function PmovEdge({ id, source, target, data }: EdgeProps<Edge<PmovEdgeDa
               color: STROKE,
               whiteSpace: 'nowrap',
               pointerEvents: 'none',
+              ...(ix?.onEdgeLabelClick ? { pointerEvents: 'all', cursor: 'pointer' } : {}),
               textShadow: [`-1.5px 0 ${FILL}`, `1.5px 0 ${FILL}`, `0 -1.5px ${FILL}`, `0 1.5px ${FILL}`].join(', '),
             }}
           >
-            {data.edge.label}
+            {ix?.onEdgeLabelClick ? (
+              <span
+                role="button"
+                data-testid={`edge-label-btn-${id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  ix.onEdgeLabelClick?.(data.edge.id);
+                }}
+              >
+                {data.edge.label}
+              </span>
+            ) : (
+              data.edge.label
+            )}
+            {ix?.renderEdgeOverlay?.(data.edge)}
           </div>
         </EdgeLabelRenderer>
       )}

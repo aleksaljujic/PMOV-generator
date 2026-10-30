@@ -101,3 +101,18 @@ describe('best-effort IR', () => {
     expect(v.name).toBe('');
   });
 });
+
+describe('sourceEn examples (needs T15 aliases)', () => {
+  const shape = (ir: NonNullable<ReturnType<typeof compile>['ir']>) =>
+    JSON.parse(JSON.stringify(stripSpans(ir), (k, v) => (k === 'name' || k === 'ref' || k === 'id' || k === 'mapping' || k === 'constraint' || k === 'child' || k === 'parent' || k === 'childAttrs' || k === 'relation' || k === 'userDomain' || k === 'attribute' || k === 'condition' || k === 'effectiveConstraint' ? undefined : v)));
+  for (const ex of EXAMPLES) {
+    if (!ex.sourceEn) continue;
+    it(`${ex.id ?? ex.title}`, () => {
+      const sr = compile(ex.source);
+      const en = compile(ex.sourceEn!, { locale: 'en' });
+      expect(en.diagnostics.map((d) => d.code)).toEqual(sr.diagnostics.map((d) => d.code));
+      expect(en.ir).not.toBeNull();
+      expect(shape(en.ir!)).toEqual(shape(sr.ir!));
+    });
+  }
+});

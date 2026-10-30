@@ -1,5 +1,6 @@
-import type { Cardinality, IRElement, IRParticipant, PmovIR } from '../lang';
+import type { Cardinality, IRAttribute, IRElement, IRParticipant, PmovIR } from '../lang';
 import { DEFAULT_RM_OPTIONS } from './types';
+import { buildConstraints } from './constraints';
 import type { Dg0Mode, RelAttribute, Relation, RelationalModel, RmOptions } from './types';
 
 const strip = (s: string): string => s.replace(/\s+/g, '');
@@ -55,8 +56,14 @@ interface Draft extends RelAttribute {
   mapping: string | null;
 }
 
-const own = (name: string, domain: RelAttribute['domain'], constraint: string | null, pk: boolean): Draft => ({
-  name: strip(name), domain, constraint, pk, fk: false, nullable: false, references: null, mapping: null,
+const own = (
+  name: string, domain: RelAttribute['domain'], constraint: string | null, pk: boolean,
+  userDomain?: string | null, length?: number | null,
+): Draft => ({
+  name: strip(name), domain, constraint, pk, fk: false, nullable: false,
+  ...(userDomain != null ? { userDomain } : {}),
+  ...(length != null ? { length } : {}),
+  references: null, mapping: null,
 });
 
 function resolveCollisions(drafts: Draft[]): void {
@@ -111,6 +118,8 @@ export function generateRelationalModel(ir: PmovIR, options: RmOptions = DEFAULT
     const group = `${sourceId}:${index}`;
     return key.map((k) => ({
       name: k.name, domain: k.domain, constraint: k.constraint, pk, fk: true, nullable,
+      ...(k.userDomain != null ? { userDomain: k.userDomain } : {}),
+      ...(k.length != null ? { length: k.length } : {}),
       references: { relation: rname, attribute: k.name, group }, mapping,
     }));
   }
@@ -133,8 +142,8 @@ export function generateRelationalModel(ir: PmovIR, options: RmOptions = DEFAULT
     if (!e || visiting.has(id)) return [];
     visiting.add(id);
     let out: Draft[] = [];
-    const ownAttrs = (attrs: { name: string; isId: boolean; domain: RelAttribute['domain']; constraint: string | null }[], idsPk: boolean) =>
-      attrs.map((a) => own(a.name, a.domain, a.constraint, idsPk && a.isId));
+    const ownAttrs = (attrs: IRAttribute[], idsPk: boolean) =>
+      attrs.map((a) => own(a.name, a.domain, a.constraint, idsPk && a.isId, a.userDomain, a.length));
     if (e.kind === 'objekat') {
       const sup = superOf.get(id);
       if (sup !== undefined && byId.has(sup)) {
@@ -201,5 +210,12 @@ export function generateRelationalModel(ir: PmovIR, options: RmOptions = DEFAULT
       attributes: drafts.map(({ mapping: _m, ...rest }) => rest),
     });
   }
-  return { relations };
+  const rm: RelationalModel = { relations };
+  const identifying = new Set<string>();
+  for (const e of ir.elements) if (e.kind === 'slab' || superOf.has(e.id)) identifying.add(e.id);
+  const built = buildConstraints(ir, relations, identifying, options.locale ?? 'sr');
+  if (built.referential.length > 0) rm.referential = built.referential;
+  if (built.general.length > 0) rm.general = built.general;
+  if (built.diagnostics.length > 0) rm.diagnostics = built.diagnostics;
+  return rm;
 }

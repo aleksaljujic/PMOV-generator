@@ -10,7 +10,7 @@ No component reads localStorage or calls `compile()` except where stated (only T
 
 ```ts
 // FILE: src/examples/index.ts
-export interface Example { id: string; title: string; source: string }
+export interface Example { id: string; title: string; source: string; titleEn?: string; sourceEn?: string }
 
 export const EXAMPLES: Example[] = [
   { id: 'osnovni', title: 'Osnovni primer', source: /* main example from requrement.md, verbatim, ending with "\n" */ '' },
@@ -164,3 +164,80 @@ Selection sync (owned by App):
 `Dijagram`, `Domeni`, `Relacioni model`, `SQL`, `Primeri`, `Ponovo rasporedi`, `Izvezi SVG`, `Izvezi PNG`,
 `Kopiraj kao tekst`, `Kopiraj`, `Veze sa DG=0:`, `posebna relacija`, `strani ključ`, `Greške i upozorenja`,
 `Nema grešaka.`, `Nema dijagrama`, table headers `ATRIBUT`, `DOMEN`, `OGRANIČENJE`.
+
+## Additions for the interactive builder (T13, additive; see C09)
+
+- `DiagramViewProps` gets optional `renderNodeOverlay`, `renderEdgeOverlay`, `onEdgeLabelClick`, `onNodeDoubleClick`,
+  `onCanvasClick`, `pickMode`, `placeholderIds`; `DiagramViewHandle` gets `centerOnElement(elementId)`.
+  Omitted props leave DiagramView unchanged. Exact signatures: C09 §DiagramView additions.
+- `STORAGE_KEYS.mode = 'pmov.mode.v1'` (`'tekst' | 'interaktivno'`, default `'tekst'`) with `loadMode()` / `saveMode()`.
+- Toolbar gets optional mode switch, "Novi dijagram", "Poništi" / "Ponovi" props. Since Wave 11 (T38) the mode
+  switch is one sidebar toggle button, see §Additions for the sidebar toggle.
+
+## Additions for the editor fix and the English option (spec/fix_editor.md, CHANGELOG 2026-10-30; additive)
+
+Every new prop is optional. Omitted `locale` means `'sr'`, so today's behaviour and tests are unchanged.
+`Locale` comes from `src/lang` (C01). Each folder keeps its own UI strings in a local `strings.ts` with an `sr` and
+an `en` table and a test that both tables have the same keys. There is no shared dictionary module.
+
+- **Examples:** `Example.titleEn?` / `Example.sourceEn?` (all four examples have them). In EN the "Examples" menu
+  shows `titleEn ?? title` and loads `sourceEn ?? source`.
+- **Editor (T14):**
+  - `EditorProps.locale?: Locale` is used for the lint message text (`formatDiagnostic(d, locale)`).
+  - Tab / Shift+Tab indent / dedent the line or the selected lines by 2 spaces (`indentWithTab`,
+    `indentUnit.of('  ')`). Enter keeps the indentation and adds a level after `{`. Typing `}` at the start of a
+    line dedents it. Esc then Tab leaves the editor.
+  - Keyword aliases (C02 §Keyword aliases) are highlighted like their canonical words.
+- **Output tabs (T17):** `locale?: Locale` on `DomainTab`, `RelationalTab`, `SqlTab`.
+- **DiagramView (T19, additive exception in `src/render/flow/`):** `DiagramViewProps.locale?: Locale` (empty state
+  text and any aria labels).
+- **Shell (T19):**
+  - `STORAGE_KEYS.lang = 'pmov.lang.v1'` (`'sr' | 'en'`, default `'sr'`; unknown values fall back to `'sr'`), with
+    `loadLang(): Locale` / `saveLang(l: Locale): void`.
+  - `ErrorPanel` props get `locale?: Locale`.
+  - Toolbar gets an optional `locale` and `onLocaleChange`, and shows the SR | EN switch only when `onLocaleChange`
+    is given.
+  - The App passes the locale to `compile`, Editor, tabs, ErrorPanel, DiagramView, the builder
+    (`applyBuilderAction(…, { locale })`, `UseBuilderOptions.locale`), and sets `document.documentElement.lang`.
+
+### UI strings, English (the Serbian ones above stay exactly as they are)
+
+| sr | en |
+|---|---|
+| Dijagram | Diagram |
+| Domeni | Domains |
+| Relacioni model | Relational model |
+| SQL | SQL |
+| Primeri | Examples |
+| Ponovo rasporedi | Re-layout |
+| Izvezi SVG / Izvezi PNG | Export SVG / Export PNG |
+| Kopiraj kao tekst / Kopiraj | Copy as text / Copy |
+| Veze sa DG=0: / posebna relacija / strani ključ | Relationships with DG=0: / separate relation / foreign key |
+| Greške i upozorenja | Errors and warnings |
+| Nema grešaka. | No errors. |
+| Nema dijagrama | No diagram |
+| ATRIBUT / DOMEN / OGRANIČENJE | ATTRIBUTE / DOMAIN / CONSTRAINT |
+| Tekst / Interaktivno / Režim | Text / Interactive / Mode |
+| Novi dijagram | New diagram |
+| Poništi / Ponovi | Undo / Redo |
+| Ispravite greške da bi se generisao relacioni model. | Fix the errors to generate the relational model. |
+| Nema podataka. Unesite dijagram u editor. | No data. Enter a diagram in the editor. |
+
+Strings that are not listed are translated by the owning agent in the same style and recorded in its task file.
+
+## Additions for domains and constraints (T25, C10 §4; additive)
+
+- `DomainTab` props: `{ ir, locale?, onAction?: TabAction, highlight?: TabHighlight }`; new `ConstraintsTab` props: `{ ir, hasErrors, dg0Mode, locale?, onAction?, highlight? }`. `TabAction = (a: BuilderAction) => BuilderResult | void`; `TabHighlight = { kind: 'domain' | 'constraint'; name: string } | null`. All exported from `src/ui/tabs/index.ts`. Without `onAction` the tabs are read-only.
+- `SqlTab` calls `generateSql(rm, ir, locale)`.
+
+## Additions for the sidebar toggle (spec/feature_text2interactive.md, Wave 11, T38; additive)
+
+- The Toolbar's mode control is one icon button **☰** at the far left (before the title) instead of the
+  "Tekst | Interaktivno" segmented switch. Same props: `mode` / `onModeChange`. `aria-expanded` = `mode === 'tekst'`;
+  label/title `Sakrij tekst (Ctrl+B)` (open) / `Prikaži tekst (Ctrl+B)` (closed), EN `Hide text (Ctrl+B)` /
+  `Show text (Ctrl+B)`. Clicking calls `onModeChange` with the other mode.
+- `pmov.mode.v1` is unchanged: `'tekst'` = sidebar open, `'interaktivno'` = sidebar closed. No new storage key.
+- `SplitPane` gets optional `collapsed?: boolean` (left pane and divider hidden, `width` kept for reopening).
+- Ctrl+B / Cmd+B toggles the mode app-wide (also from the editor), not inside builder inline text fields.
+- Strings: `Prikaži tekst (Ctrl+B)` / `Show text (Ctrl+B)`, `Sakrij tekst (Ctrl+B)` / `Hide text (Ctrl+B)`.
+  `Tekst` / `Interaktivno` are no longer shown in the toolbar.

@@ -38,3 +38,9 @@ npm run typecheck                 # whole repo must stay green
 - Replace every `not implemented: T05` stub.
 - Fill in **Status** and **Contract notes** at the bottom of your task file.
 - If a contract is wrong or missing something, follow `spec/contracts/README.md` rule 5. Never edit frozen files or other folders.
+
+## Current follow-up task (Wave 4, CHANGELOG 2026-10-30)
+
+**T19**: [`../../../spec/tasks/T19-shell-language-switch.md`](../../../spec/tasks/T19-shell-language-switch.md), spec [`../../../spec/fix_editor.md`](../../../spec/fix_editor.md).
+If you were started for T19, read that task file instead of the original one in "Read first" item 1. Everything else
+in this file still applies. This folder's owner stays as above; T19 may only make the additive edits listed in its task file.

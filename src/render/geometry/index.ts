@@ -109,6 +109,20 @@ function routePoints(
   const tb = target.box;
   const sc = centerOf(sb);
   const tc = centerOf(tb);
+  // Recursive veza stacked above/below its objekat: top/bottom loops would run through the boxes and collapse onto
+  // each other, so loopTop becomes the direct line and loopBottom bends around the left side (attributes prefer right).
+  const stacked = (edge.route === 'loopTop' || edge.route === 'loopBottom')
+    && sb.x < tb.x + tb.width && tb.x < sb.x + sb.width;
+  if (stacked && edge.route === 'loopTop') {
+    return [
+      outlineIntersection(NODE_SHAPE_OF(source.node), sb, tc),
+      outlineIntersection(NODE_SHAPE_OF(target.node), tb, sc),
+    ];
+  }
+  if (stacked) {
+    const x = Math.min(sb.x, tb.x) - LOOP_MARGIN;
+    return [{ x: sb.x, y: sc.y }, { x, y: sc.y }, { x, y: tc.y }, { x: tb.x, y: tc.y }];
+  }
   switch (edge.route) {
     case 'loopTop': {
       const y = Math.min(sb.y, tb.y) - LOOP_MARGIN;

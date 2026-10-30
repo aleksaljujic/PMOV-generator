@@ -10,14 +10,23 @@ export interface SplitPaneProps {
   onWidthChange(px: number): void;
   minLeft?: number;
   minRight?: number;
+  /** aria-label of the divider (default Serbian). */
+  dividerLabel?: string;
+  /** Hide the left pane and the divider (the sidebar is closed); `width` is kept for reopening. */
+  collapsed?: boolean;
+  /** Called when the left pane's width transition ends (the close animation is over). */
+  onLeftTransitionEnd?(): void;
 }
+
+/** id of the left pane, for the toolbar toggle's aria-controls. */
+export const SIDEBAR_ID = 'pmov-sidebar';
 
 export function clampWidth(w: number, total: number, minLeft: number, minRight: number): number {
   const max = Math.max(minLeft, total - minRight);
   return Math.min(Math.max(w, minLeft), max);
 }
 
-export function SplitPane({ left, right, width, onWidthChange, minLeft = 280, minRight = 320 }: SplitPaneProps): JSX.Element {
+export function SplitPane({ left, right, width, onWidthChange, minLeft = 280, minRight = 320, dividerLabel = 'Promeni širinu editora', collapsed = false, onLeftTransitionEnd }: SplitPaneProps): JSX.Element {
   const rootRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
@@ -62,13 +71,23 @@ export function SplitPane({ left, right, width, onWidthChange, minLeft = 280, mi
   };
 
   return (
-    <div className="split" ref={rootRef} style={{ ['--left-w' as string]: `${width}px` }}>
-      <div className="split__left">{left}</div>
+    <div className={`split${collapsed ? ' split--collapsed' : ''}`} ref={rootRef} style={{ ['--left-w' as string]: `${width}px` }}>
+      <div
+        className="split__left"
+        id={SIDEBAR_ID}
+        aria-hidden={collapsed || undefined}
+        onTransitionEnd={(e) => {
+          if (e.target === e.currentTarget) onLeftTransitionEnd?.();
+        }}
+      >
+        {left}
+      </div>
       <div
         className="split__divider"
         role="separator"
         aria-orientation="vertical"
-        aria-label="Promeni širinu editora"
+        aria-label={dividerLabel}
+        hidden={collapsed}
         tabIndex={0}
         onPointerDown={onDown}
         onKeyDown={onKey}

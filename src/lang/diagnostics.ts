@@ -29,14 +29,16 @@ export type Severity = 'error' | 'warning';
 
 export type SyntaxCode = 'S01' | 'S02' | 'S03' | 'S04' | 'S05' | 'S06';
 export type ErrorCode =
-  | 'E01' | 'E02' | 'E03' | 'E04' | 'E05' | 'E06' | 'E07' | 'E08' | 'E09' | 'E10' | 'E11' | 'E12';
-export type WarningCode = 'W01' | 'W02' | 'W03' | 'W04';
+  | 'E01' | 'E02' | 'E03' | 'E04' | 'E05' | 'E06' | 'E07' | 'E08' | 'E09' | 'E10' | 'E11' | 'E12'
+  // C10 (domains and cross-table constraints): E13–E17 from src/lang, E18–E20 from src/rm.
+  | 'E13' | 'E14' | 'E15' | 'E16' | 'E17' | 'E18' | 'E19' | 'E20';
+export type WarningCode = 'W01' | 'W02' | 'W03' | 'W04' | 'W05' | 'W06';
 export type DiagnosticCode = SyntaxCode | ErrorCode | WarningCode;
 
 export interface Diagnostic {
   code: DiagnosticCode;
   severity: Severity;
-  /** Message body in Serbian (Latin), WITHOUT the "greška E04 (red …)" prefix. */
+  /** Message body in the requested locale (default Serbian Latin), WITHOUT the "greška E04 (red …)" prefix. */
   message: string;
   /** Where the squiggle goes. Points at the most specific token (name, cardinality, attribute …). */
   span: SourceSpan;
@@ -48,8 +50,23 @@ export function severityOf(code: DiagnosticCode): Severity {
   return code.startsWith('W') ? 'warning' : 'error';
 }
 
-/** "greška E04 (red 12, kol 1): veza 'Overe' ima 3 učesnika, …" */
-export function formatDiagnostic(d: Diagnostic): string {
+/** Language of UI text and diagnostic messages. Codes, spans and the DSL itself do not depend on it. */
+export type Locale = 'sr' | 'en';
+export const LOCALES: readonly Locale[] = ['sr', 'en'];
+export const DEFAULT_LOCALE: Locale = 'sr';
+
+/** Options accepted by `lex`, `parse` and `compile`; omitted ⇒ Serbian messages. */
+export interface LangOptions {
+  locale?: Locale;
+}
+
+/** sr: "greška E04 (red 12, kol 1): veza 'Overe' ima 3 učesnika, …"
+ *  en: "error E04 (line 12, col 1): relationship 'Overe' has 3 participants, …" */
+export function formatDiagnostic(d: Diagnostic, locale: Locale = DEFAULT_LOCALE): string {
+  if (locale === 'en') {
+    const prefix = d.severity === 'error' ? 'error' : 'warning';
+    return `${prefix} ${d.code} (line ${d.span.line}, col ${d.span.col}): ${d.message}`;
+  }
   const prefix = d.severity === 'error' ? 'greška' : 'upozorenje';
   return `${prefix} ${d.code} (red ${d.span.line}, kol ${d.span.col}): ${d.message}`;
 }

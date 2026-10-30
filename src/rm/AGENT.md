@@ -38,3 +38,23 @@ npm run typecheck                 # whole repo must stay green
 - Replace every `not implemented: T03` stub.
 - Fill in **Status** and **Contract notes** at the bottom of your task file.
 - If a contract is wrong or missing something, follow `spec/contracts/README.md` rule 5. Never edit frozen files or other folders.
+
+## Current follow-up task (Wave 8, CHANGELOG 2026-10-30, contract C11)
+
+**T30**: [`../../spec/tasks/T30-rm-sql-dialects.md`](../../spec/tasks/T30-rm-sql-dialects.md), contract [`../../spec/contracts/C11-sql-dialects.md`](../../spec/contracts/C11-sql-dialects.md),
+spec [`../../spec/feature_multy_language.md`](../../spec/feature_multy_language.md). If you were started for T30, read that task file
+instead of the original one in "Read first" item 1. It overrides older follow-up sections. Everything else in this
+file still applies.
+
+## Previous follow-up task (Wave 7, CHANGELOG 2026-10-30, contract C10)
+
+**T24**: [`../../spec/tasks/T24-rm-constraints-sql.md`](../../spec/tasks/T24-rm-constraints-sql.md), contract [`../../spec/contracts/C10-domains-and-constraints.md`](../../spec/contracts/C10-domains-and-constraints.md),
+spec [`../../spec/feature_domain_strucutre.md`](../../spec/feature_domain_strucutre.md). If you were started for T24, read that task file
+instead of the original one in "Read first" item 1. It overrides older follow-up sections. Everything else in this
+file still applies.
+
+## Follow-up task after T30 (Wave 9, CHANGELOG 2026-10-30, contract C12)
+
+**T34**: [`../../spec/tasks/T34-rm-triggers.md`](../../spec/tasks/T34-rm-triggers.md), contract [`../../spec/contracts/C12-triggers.md`](../../spec/contracts/C12-triggers.md),
+spec [`../../spec/feature_triggers.md`](../../spec/feature_triggers.md). Run it only after T30 is done. If you were started
+for T34, read that task file instead of the original one in "Read first" item 1. Everything else in this file still applies.

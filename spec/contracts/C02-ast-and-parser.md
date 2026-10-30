@@ -7,13 +7,52 @@ Owner: **T01**. Consumers: T02 (checker, IR builder), T07 (editor highlighting m
 ```ts
 // FILE: src/lang/ast.ts
 // CONTRACT C02 — frozen. Change only via spec/contracts/CHANGELOG.md.
-import type { Diagnostic, SourceSpan } from './diagnostics';
+import type { Diagnostic, Locale, SourceSpan } from './diagnostics';
 
 export type BlockKind = 'objekat' | 'veza' | 'slab' | 'specijalizacija' | 'agregacija';
 export const BLOCK_KINDS: readonly BlockKind[] = ['objekat', 'veza', 'slab', 'specijalizacija', 'agregacija'];
 
 export type Role = 'nadređeni' | 'nadtip' | 'podtip';
 export const ROLES: readonly Role[] = ['nadređeni', 'nadtip', 'podtip'];
+
+/** Alternative keyword spellings accepted by the parser. The AST always holds the canonical (Serbian) value. */
+export const BLOCK_KIND_ALIASES: Readonly<Record<string, BlockKind>> = {
+  object: 'objekat',
+  relationship: 'veza',
+  weak: 'slab',
+  specialization: 'specijalizacija',
+  aggregation: 'agregacija',
+};
+export const ROLE_ALIASES: Readonly<Record<string, Role>> = {
+  nadredjeni: 'nadređeni',
+  owner: 'nadređeni',
+  supertype: 'nadtip',
+  subtype: 'podtip',
+};
+
+const hasOwn = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
+
+/** Canonical block kind for a keyword or alias (`object` → `objekat`), else null. Case-sensitive. */
+export function canonicalBlockKind(word: string): BlockKind | null {
+  if ((BLOCK_KINDS as readonly string[]).includes(word)) return word as BlockKind;
+  return hasOwn(BLOCK_KIND_ALIASES, word) ? (BLOCK_KIND_ALIASES[word] ?? null) : null;
+}
+
+/** Canonical role for a keyword or alias (`nadredjeni`, `owner` → `nadređeni`), else null. Case-sensitive. */
+export function canonicalRole(word: string): Role | null {
+  if ((ROLES as readonly string[]).includes(word)) return word as Role;
+  return hasOwn(ROLE_ALIASES, word) ? (ROLE_ALIASES[word] ?? null) : null;
+}
+
+/** Keyword spelling used when generating DSL text (builder) in the given UI language. */
+export const BLOCK_KIND_KEYWORDS: Readonly<Record<Locale, Readonly<Record<BlockKind, string>>>> = {
+  sr: { objekat: 'objekat', veza: 'veza', slab: 'slab', specijalizacija: 'specijalizacija', agregacija: 'agregacija' },
+  en: { objekat: 'object', veza: 'relationship', slab: 'weak', specijalizacija: 'specialization', agregacija: 'aggregation' },
+};
+export const ROLE_KEYWORDS: Readonly<Record<Locale, Readonly<Record<Role, string>>>> = {
+  sr: { nadređeni: 'nadređeni', nadtip: 'nadtip', podtip: 'podtip' },
+  en: { nadređeni: 'owner', nadtip: 'supertype', podtip: 'subtype' },
+};
 
 export type Domain = 'long' | 'short' | 'string' | 'date';
 export const DOMAINS: readonly Domain[] = ['long', 'short', 'string', 'date'];
@@ -97,10 +136,10 @@ export interface ParseResult { ast: ModelAst; diagnostics: Diagnostic[] }
 
 ```ts
 // src/lang/syntax/index.ts   (exported via src/lang)
-export function lex(source: string): LexResult;
+export function lex(source: string, options?: LangOptions): LexResult;
 
 // src/lang/syntax/index.ts
-export function parse(source: string): ParseResult;   // calls lex() internally
+export function parse(source: string, options?: LangOptions): ParseResult;   // calls lex() internally; locale only affects messages
 ```
 
 Both are pure, synchronous, never throw on any input (fuzz-safe), and always return a (possibly partial) AST.
@@ -131,7 +170,7 @@ Both are pure, synchronous, never throw on any input (fuzz-safe), and always ret
    `(2,X)` parses and the checker reports E03). Anything after the mapping name → S01, skip rest of line.
 5. Attribute line: `attribute { "," attribute }` where
    `attribute = name ["#"] [":" domain [constraint]]`.
-   - A word after `:` that is not a domain → S06 (the attribute is kept with `domain: null`).
+   - A word after `:` that is not a domain → S06 (the attribute is kept with `domain: null`). **Superseded by C10 (T22): no S06 any more; the word sets `userDomain` and the checker reports E13.**
    - **Constraint rule:** after a domain, if the next token is `,` a new attribute starts
      (`{ Mlb# : long, Ime : string }`). Otherwise *everything* up to the end of the line — or up to a `}` at
      paren-depth 0 that closes the block — is the constraint, commas included (`Between 15,65`,
@@ -139,6 +178,18 @@ Both are pure, synchronous, never throw on any input (fuzz-safe), and always ret
      trimmed.
 6. Error recovery: on an error inside a line, report once, skip to the next newline, continue. On EOF inside a
    block → S05, close the block with what was collected.
+
+### Keyword aliases (spec/fix_editor.md, CHANGELOG 2026-10-30)
+
+- Wherever the grammar above says "block kind" or "role keyword", the parser uses `canonicalBlockKind(word)` /
+  `canonicalRole(word)`, so the aliases in `BLOCK_KIND_ALIASES` / `ROLE_ALIASES` (`object`, `relationship`, `weak`,
+  `specialization`, `aggregation`, `nadredjeni`, `owner`, `supertype`, `subtype`) work exactly like the canonical
+  Serbian words, in any UI language, and can be mixed in one source. This includes rule 1 (top level and error
+  resync) and rule 3 (participant detection).
+- `BlockAst.kind` and `ParticipantAst.role.value` always hold the **canonical** value. `kindSpan` and `role.span`
+  still point at the word as written, so a source edit can see how it was spelled.
+- Matching is case-sensitive (`Object` is a plain name).
+- The `_` name is allowed only when the canonical kind is `veza`.
 
 ## Required test coverage (T01)
 
