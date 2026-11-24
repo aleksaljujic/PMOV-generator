@@ -38,3 +38,10 @@ npm run typecheck                 # whole repo must stay green
 - Replace every `not implemented: T06` stub.
 - Fill in **Status** and **Contract notes** at the bottom of your task file.
 - If a contract is wrong or missing something, follow `spec/contracts/README.md` rule 5. Never edit frozen files or other folders.
+
+## Current follow-up task (Wave 12, CHANGELOG 2026-11-04, contract C07)
+
+**T42**: [`../../../spec/tasks/T42-svg-diagram-geometry.md`](../../../spec/tasks/T42-svg-diagram-geometry.md), contract [`../../../spec/contracts/C07-svg-export.md`](../../../spec/contracts/C07-svg-export.md) §Additions for busy nodes,
+spec [`../../../spec/feature_dense_nodes.md`](../../../spec/feature_dense_nodes.md). If you were started for T42, read that task file
+instead of the original one in "Read first" item 1. It overrides older follow-up sections. Everything else in this
+file still applies.

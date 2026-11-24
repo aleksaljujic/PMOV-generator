@@ -5,6 +5,7 @@ import { computeEdgeGeometry } from '../geometry';
 import type { Box } from '../geometry';
 import type { DiagramNode } from '../graph/types';
 import { EDGE_FONT_SIZE, FILL, FONT_FAMILY, STROKE, STROKE_WIDTH } from '../style';
+import { useEdgeGeometry } from './edgeGeometry';
 import { useInteraction } from './interaction';
 import type { PmovEdgeData, PmovNodeData } from './toReactFlow';
 
@@ -28,9 +29,10 @@ export function PmovEdge({ id, source, target, data }: EdgeProps<Edge<PmovEdgeDa
   const ix = useInteraction();
   const src = endpoint(useInternalNode(source));
   const tgt = endpoint(useInternalNode(target));
-  if (!src || !tgt || !data) return null;
+  const shared = useEdgeGeometry(id);
+  if (!data || (!shared && (!src || !tgt))) return null;
 
-  const g = computeEdgeGeometry(data.edge, src, tgt);
+  const g = shared ?? computeEdgeGeometry(data.edge, src!, tgt!);
   const textAlign = g.label?.anchor === 'start' ? '0%' : g.label?.anchor === 'end' ? '-100%' : '-50%';
 
   return (

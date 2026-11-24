@@ -20,7 +20,7 @@ export function prepare(graph: DiagramGraph): Prepared {
 
 export function layoutCoreSync(graph: DiagramGraph): PositionMap {
   const { m, s, iw, ih } = prepare(graph);
-  const p = stressLayout(m, iw, ih);
+  const p = stressLayout(m, iw, ih, s.w, s.h);
   s.cx = p.x; s.cy = p.y;
   return postProcess(m, s);
 }

@@ -4,13 +4,20 @@ import type { DiagramGraph, PositionMap } from '../graph/types';
 import { placeAttributes } from './attributes';
 import { EDGE_LENGTH, NODE_GAP } from './constants';
 import { layoutCoreSync, prepare } from './core';
+import { cardBoxes } from './card';
+import { acceptable, buildGridModel, completeGrid, elkGraph, fromElk, rankLayout } from './grid';
 import { postProcess } from './post';
+import { edgeLength } from './stress';
 
-export { placeAttributes };
+export { placeAttributes, cardBoxes };
+
+export type LayoutAlgorithm = 'grid' | 'free';
 
 export interface LayoutOptions {
   /** Positions the user dragged (from localStorage). They override computed positions for those node ids. */
   saved?: PositionMap;
+  /** 'grid' (default): ELK layered with attribute cards. 'free': the Wave 12 stress layout, unchanged. */
+  algorithm?: LayoutAlgorithm;
 }
 
 function complete(graph: DiagramGraph, core: PositionMap, options?: LayoutOptions): PositionMap {
@@ -30,24 +37,48 @@ function complete(graph: DiagramGraph, core: PositionMap, options?: LayoutOption
   return out;
 }
 
+/** ELK layered on attribute cards (chain-oriented vezas), rounded to a 10 px grid. Falls back to the rank layout. */
+async function layoutGrid(graph: DiagramGraph, options?: LayoutOptions): Promise<PositionMap> {
+  let core: PositionMap;
+  try {
+    const gm = buildGridModel(graph);
+    core = {};
+    if (gm.m.nodes.length > 0) {
+      // wrapped layers first (contract), then unwrapped; the rank layout when neither keeps the guarantees
+      const elk = new ELK();
+      for (const wrap of [true, false]) {
+        core = fromElk(gm, await elk.layout(elkGraph(gm, wrap)));
+        if (acceptable(gm, core)) break;
+        core = rankLayout(gm);
+      }
+    }
+  } catch {
+    core = rankLayout(buildGridModel(graph));
+  }
+  return completeGrid(graph, core, options?.saved);
+}
+
 /** ELK stress (undirected 2D) on core nodes, then spec post-processing, overlap removal and attribute placement. */
-export async function layoutDiagram(graph: DiagramGraph, options?: LayoutOptions): Promise<PositionMap> {
+async function layoutFree(graph: DiagramGraph, options?: LayoutOptions): Promise<PositionMap> {
   let core: PositionMap;
   try {
     const { m, s, iw, ih } = prepare(graph);
-    const mean = iw.length ? iw.reduce((t, v, i) => t + Math.hypot(v, ih[i]!), 0) / iw.length : 0;
-    const desired = Math.min(480, Math.max(EDGE_LENGTH, mean * 1.0));
     const elk = new ELK();
     const res = await elk.layout({
       id: 'root',
       layoutOptions: {
         'elk.algorithm': 'stress',
-        'org.eclipse.elk.stress.desiredEdgeLength': String(desired),
+        'org.eclipse.elk.stress.desiredEdgeLength': String(EDGE_LENGTH),
         'elk.spacing.nodeNode': String(NODE_GAP),
         'elk.separateConnectedComponents': 'false',
       },
       children: m.nodes.map((nd, i) => ({ id: nd.id, width: iw[i]!, height: ih[i]! })),
-      edges: m.edges.map(([a, b], k) => ({ id: `e${k}`, sources: [m.nodes[a]!.id], targets: [m.nodes[b]!.id] })),
+      edges: m.edges.map(([a, b], k) => ({
+        id: `e${k}`,
+        sources: [m.nodes[a]!.id],
+        targets: [m.nodes[b]!.id],
+        layoutOptions: { 'org.eclipse.elk.stress.desiredEdgeLength': String(edgeLength(s.w, s.h, a, b, m.degree)) },
+      })),
     });
     const byId = new Map((res.children ?? []).map((c) => [c.id, c]));
     m.nodes.forEach((nd, i) => {
@@ -63,7 +94,13 @@ export async function layoutDiagram(graph: DiagramGraph, options?: LayoutOptions
   return complete(graph, core, options);
 }
 
-/** Same contract, no ELK: deterministic layered fallback. Synchronous. */
+/** `algorithm: 'grid'` (default): ELK layered on cards. `'free'`: ELK stress, overlap removal, attribute fans. */
+export function layoutDiagram(graph: DiagramGraph, options?: LayoutOptions): Promise<PositionMap> {
+  return options?.algorithm === 'free' ? layoutFree(graph, options) : layoutGrid(graph, options);
+}
+
+/** Same contract, no ELK: deterministic rank layout (`grid`) or stress fallback (`free`). Synchronous. */
 export function layoutDiagramSync(graph: DiagramGraph, options?: LayoutOptions): PositionMap {
-  return complete(graph, layoutCoreSync(graph), options);
+  if (options?.algorithm === 'free') return complete(graph, layoutCoreSync(graph), options);
+  return completeGrid(graph, rankLayout(buildGridModel(graph)), options?.saved);
 }

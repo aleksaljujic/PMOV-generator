@@ -1,3 +1,4 @@
+import { ATTR_ROW_PITCH } from '../../graph';
 import type { DiagramEdge, DiagramGraph, DiagramNode } from '../../graph/types';
 
 const core = (id: string, type: DiagramNode['type'], label: string, width: number, height: number): DiagramNode => ({
@@ -10,6 +11,15 @@ const attr = (owner: string, name: string, isId = false): DiagramNode => ({
 const edge = (id: string, source: string, target: string, extra: Partial<DiagramEdge> = {}): DiagramEdge => ({
   id, source, target, label: null, arrow: false, route: 'straight', elementId: id, ...extra,
 });
+
+/** Grows owner boxes to card height like the graph builder: as in graph/build.ts (sizeCard). */
+function sizeOwners(nodes: DiagramNode[]): void {
+  for (const n of nodes) {
+    const k = nodes.filter((a) => a.ownerNodeId === n.id).length;
+    const rows = Math.ceil(k / 2);
+    if (k > 0) n.height = Math.max(n.height, rows <= 6 ? rows * ATTR_ROW_PITCH + 12 : Math.ceil(rows / 2) * ATTR_ROW_PITCH + 28);
+  }
+}
 
 export function makeFixtureGraph(): DiagramGraph {
   const nodes: DiagramNode[] = [
@@ -39,6 +49,7 @@ export function makeFixtureGraph(): DiagramGraph {
   nodes.push(attr('Radi', 'Sati'));
   nodes.push(attr('Usamljen', 'X'));
   nodes.push(attr('Osoba', 'Id', true));
+  sizeOwners(nodes);
 
   const edges: DiagramEdge[] = [
     edge('r1', 'Radnik', 'Radi', { label: '(1,n)' }),
@@ -61,5 +72,18 @@ export function makeFixtureGraph(): DiagramGraph {
     edge('k3', 'Osoba', 'Osoba', { route: 'loopBottom' }),
   ];
   for (const n of nodes) if (n.layoutRole === 'attribute') edges.push(edge(`e:${n.id}`, n.ownerNodeId!, n.id));
+  return { nodes, edges };
+}
+
+/** A star: `Centar` with `attrs` attributes and `degree` direct core neighbours (objekat). */
+export function makeStarGraph(degree: number, attrs = 0): DiagramGraph {
+  const nodes: DiagramNode[] = [core('Centar', 'objekat', 'Centar', 100, 44)];
+  const edges: DiagramEdge[] = [];
+  for (let i = 0; i < degree; i++) {
+    nodes.push(core(`N${i}`, 'objekat', `N${i}`, 100, 44));
+    edges.push(edge(`e${i}`, 'Centar', `N${i}`));
+  }
+  for (let i = 0; i < attrs; i++) nodes.push(attr('Centar', `A${i}`, i === 0));
+  sizeOwners(nodes);
   return { nodes, edges };
 }

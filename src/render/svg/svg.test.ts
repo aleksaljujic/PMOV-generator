@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { DiagramNode, DiagramNodeType } from '../graph/types';
 import { drawNode } from './shapes';
 import { el, escapeXml } from './xml';
@@ -60,5 +60,30 @@ describe('drawNode', () => {
     const s = drawNode(node('objekat', 'A&B <x>'), { x: 0, y: 0 }, true);
     expect(s).toContain('#d32f2f');
     expect(s).toContain('A&amp;B &lt;x&gt;');
+  });
+});
+
+describe('graphToSvg geometry', () => {
+  it('calls computeDiagramGeometry once and places labels from its result', async () => {
+    const real = await import('../geometry');
+    const spy = vi.fn(real.computeDiagramGeometry);
+    vi.resetModules();
+    vi.doMock('../geometry', () => ({ ...real, computeDiagramGeometry: spy }));
+    const { graphToSvg } = await import('./index');
+    const { num } = await import('./xml');
+    const { buildDiagramGraph } = await import('../graph');
+    const { layoutDiagramSync } = await import('../layout');
+    const { MAIN_EXAMPLE_IR } = await import('../../fixtures/ir');
+    const graph = buildDiagramGraph(MAIN_EXAMPLE_IR);
+    const positions = layoutDiagramSync(graph);
+    const svg = graphToSvg(graph, positions);
+    expect(spy).toHaveBeenCalledTimes(1);
+    const geo = spy.mock.results[0]!.value as Record<string, { label?: { x: number; y: number } }>;
+    const labels = Object.values(geo).filter((g) => g.label);
+    expect(labels.length).toBeGreaterThan(0);
+    for (const g of labels) {
+      expect(svg).toContain(`x="${num(g.label!.x)}" y="${num(g.label!.y)}"`);
+    }
+    vi.doUnmock('../geometry');
   });
 });

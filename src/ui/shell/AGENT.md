@@ -39,6 +39,13 @@ npm run typecheck                 # whole repo must stay green
 - Fill in **Status** and **Contract notes** at the bottom of your task file.
 - If a contract is wrong or missing something, follow `spec/contracts/README.md` rule 5. Never edit frozen files or other folders.
 
+## Current follow-up task (Wave 13, CHANGELOG 2026-11-04, contract C08)
+
+**T49**: [`../../../spec/tasks/T49-shell-layout-controls.md`](../../../spec/tasks/T49-shell-layout-controls.md), contract [`../../../spec/contracts/C08-ui-components.md`](../../../spec/contracts/C08-ui-components.md) §Additions for the grid layout,
+spec [`../../../spec/feature_grid_layout.md`](../../../spec/feature_grid_layout.md). If you were started for T49, read that task file
+instead of the original one in "Read first" item 1. It overrides older follow-up sections. Everything else in this
+file still applies.
+
 ## Current follow-up task (Wave 11, CHANGELOG 2026-10-30, contract C08)
 
 **T38**: [`../../../spec/tasks/T38-shell-sidebar-toggle.md`](../../../spec/tasks/T38-shell-sidebar-toggle.md), contract [`../../../spec/contracts/C08-ui-components.md`](../../../spec/contracts/C08-ui-components.md) §Additions for the sidebar toggle,

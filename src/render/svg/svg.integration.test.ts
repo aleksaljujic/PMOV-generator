@@ -66,3 +66,9 @@ describe('graphToSvg', () => {
     expect(graphToSvg(graph, pos)).toContain('data-layer="background"');
   });
 });
+
+describe('renderSvg (all examples)', () => {
+  it('parses without parsererror for every example', () => {
+    for (const ex of EXAMPLES) parses(renderSvg(ex.source));
+  });
+});

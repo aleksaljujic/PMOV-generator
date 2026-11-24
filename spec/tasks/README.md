@@ -82,3 +82,16 @@ affect `*.integration.test.ts` files and manual checks — never the task's own 
    learn about clarifications without talking to you).
 6. Need a contract change? Follow `../contracts/README.md` rule 5. Never "just fix" another task's file.
 | [T38](T38-shell-sidebar-toggle.md) | Shell: one ☰ sidebar toggle instead of "Tekst \| Interaktivno" (Wave 11) | C08 §Additions for the sidebar toggle | C08 C09 | – |
+| [T39](T39-graph-size-by-degree.md) | Graph: box size grows with the number of lines (Wave 12) | C05 §Additions for busy nodes | C05 | – |
+| [T40](T40-geometry-ports-labels.md) | Geometry: `computeDiagramGeometry`, spread endpoints, label collisions (Wave 12) | C06 §Additions for busy nodes | C05 C06 | – (own fixtures) |
+| [T41](T41-layout-attribute-fans.md) | Layout: attributes on up to four sides, degree-scaled edge length, red layout tests green (Wave 12) | C06 §Additions for busy nodes | C05 C06 | – |
+| [T42](T42-svg-diagram-geometry.md) | SVG export: use `computeDiagramGeometry` (Wave 12) | C07 §Addition (Wave 12) | C06 C07 | – (Wave 0 fallback) |
+| [T43](T43-flow-diagram-geometry.md) | React Flow view: use `computeDiagramGeometry`, live while dragging (Wave 12) | C08 §Additions for busy nodes | C06 C08 | – (Wave 0 fallback) |
+| [T44](T44-acceptance-dense-nodes.md) | Acceptance: busy-node metrics on every example, before/after SVG (Wave 12, after T39–T43) | feature spec §Done when | all | T39–T43 |
+| [T45](T45-graph-card-sizing.md) | Graph: card sizing, height from attributes, width from relationships (Wave 13) | C05 §Additions for the grid layout | C05 | – |
+| [T46](T46-layout-grid-cards.md) | Layout: `grid` = ELK layered with attribute cards; `free` = Wave 12 stress (Wave 13) | C06 §Additions for the grid layout | C05 C06 | – (own fixtures) |
+| [T47](T47-geometry-stubs-card-ports.md) | Geometry: 90° attribute stubs, relationship ports on top/bottom of cards (Wave 13) | C06 §Additions for the grid layout | C06 | – (own fixtures) |
+| [T48](T48-flow-locked-drag-snap.md) | Flow: locked attributes, Alt-drag, snap to grid, nudge on drop, `layoutAlgorithm` (Wave 13) | C08 §Additions for the grid layout | C06 C08 | T46 `cardBoxes` (mock until it lands) |
+| [T49](T49-shell-layout-controls.md) | Shell: layout select, lock / snap toggles, one undo step per drag (Wave 13) | C08 §Additions for the grid layout | C08 | – (mock flow) |
+| [T50](T50-acceptance-grid-layout.md) | Acceptance: grid metrics = 0, cards, locked drag, JSON round trip; replaces T44 (Wave 13, after T45–T49) | feature spec §Done when | all | T45–T49 |
+| [T51](T51-shell-syntax-help.md) | Shell: visible syntax help panel, "? Pomoć" button + F1 (Wave 14, orchestrator) | C08 | C08 | – |

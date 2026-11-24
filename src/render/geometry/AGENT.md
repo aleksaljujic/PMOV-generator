@@ -38,3 +38,17 @@ npm run typecheck                 # whole repo must stay green
 - Replace every `not implemented: T12` stub.
 - Fill in **Status** and **Contract notes** at the bottom of your task file.
 - If a contract is wrong or missing something, follow `spec/contracts/README.md` rule 5. Never edit frozen files or other folders.
+
+## Current follow-up task (Wave 13, CHANGELOG 2026-11-04, contract C06)
+
+**T47**: [`../../../spec/tasks/T47-geometry-stubs-card-ports.md`](../../../spec/tasks/T47-geometry-stubs-card-ports.md), contract [`../../../spec/contracts/C06-layout-and-geometry.md`](../../../spec/contracts/C06-layout-and-geometry.md) §Additions for the grid layout,
+spec [`../../../spec/feature_grid_layout.md`](../../../spec/feature_grid_layout.md). If you were started for T47, read that task file
+instead of the original one in "Read first" item 1. It overrides older follow-up sections. Everything else in this
+file still applies.
+
+## Current follow-up task (Wave 12, CHANGELOG 2026-11-04, contract C06)
+
+**T40**: [`../../../spec/tasks/T40-geometry-ports-labels.md`](../../../spec/tasks/T40-geometry-ports-labels.md), contract [`../../../spec/contracts/C06-layout-and-geometry.md`](../../../spec/contracts/C06-layout-and-geometry.md) §Additions for busy nodes,
+spec [`../../../spec/feature_dense_nodes.md`](../../../spec/feature_dense_nodes.md). If you were started for T40, read that task file
+instead of the original one in "Read first" item 1. It overrides older follow-up sections. Everything else in this
+file still applies.

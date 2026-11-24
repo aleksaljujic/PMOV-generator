@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MAIN_EXAMPLE_IR, SPEC_EXAMPLE_IR } from '../../fixtures/ir';
 import type { PmovIR } from '../../lang';
-import { attributeNodeId, buildDiagramGraph, estimateTextWidth } from './index';
+import { ATTR_ROW_PITCH, PORT_PITCH, attributeNodeId, buildDiagramGraph, estimateTextWidth } from './index';
 
 const count = <T,>(xs: T[], f: (x: T) => string) =>
   xs.reduce<Record<string, number>>((m, x) => ((m[f(x)] = (m[f(x)] ?? 0) + 1), m), {});
@@ -75,7 +75,8 @@ describe('sizes and errors', () => {
   it('sizes', () => {
     const g = buildDiagramGraph(MAIN_EXAMPLE_IR);
     const n = (id: string) => g.nodes.find((x) => x.id === id)!;
-    expect(n('Radnik')).toMatchObject({ width: Math.max(100, estimateTextWidth('Radnik', 13) + 32), height: 44 });
+    // Radnik: 4 attributes -> rows 2 -> h = 76 (T45 card rule).
+    expect(n('Radnik')).toMatchObject({ width: Math.max(100, estimateTextWidth('Radnik', 13) + 32), height: 76 });
     const z = n('Zapošljavanje');
     expect(z.width).toBeCloseTo(Math.max(100, estimateTextWidth('Zapošljavanje', 13) * 1.6 + 30));
     expect(z.height).toBe(Math.max(56, z.width * 0.5));
@@ -114,5 +115,50 @@ describe('estimateTextWidth', () => {
     expect(estimateTextWidth('iii', 12)).toBeLessThan(estimateTextWidth('aaa', 12));
     expect(estimateTextWidth('MMM', 12)).toBeGreaterThan(estimateTextWidth('aaa', 12));
     expect(estimateTextWidth('a', 26)).toBeCloseTo(2 * estimateTextWidth('a', 13));
+  });
+});
+
+describe('card sizing (T45)', () => {
+  const b = { span: null as never, nameSpan: null as never };
+  const attrs = (k: number) => Array.from({ length: k }, (_, i) => ({
+    name: `a${i}`, isId: false, domain: null, constraint: null, span: null as never,
+  }));
+  const p = (ref: string) => ({ ref, card: { min: 1 as const, max: 'M' as const }, mapping: null, span: null as never });
+  const objWith = (k: number): PmovIR => ({ elements: [{ kind: 'objekat', id: 'O', name: 'O', ...b, attributes: attrs(k) }] });
+  const sizeOf = (ir: PmovIR, id: string) => {
+    const n = buildDiagramGraph(ir).nodes.find((x) => x.id === id)!;
+    return [n.width, n.height];
+  };
+
+  it('exports the pitches', () => {
+    expect(ATTR_ROW_PITCH).toBe(32);
+    expect(PORT_PITCH).toBe(22);
+  });
+  it('17 attributes + 10 vezas: staggered, h = 188, w = max(w0, 130)', () => {
+    const elements: PmovIR['elements'] = [{ kind: 'objekat', id: 'O', name: 'O', ...b, attributes: attrs(17) }];
+    for (let i = 0; i < 10; i++) elements.push({ kind: 'veza', id: `V${i}`, name: `V${i}`, ...b, participants: [p('O'), p('X')] });
+    const g = buildDiagramGraph({ elements });
+    const o = g.nodes.find((x) => x.id === 'O')!;
+    expect([o.width, o.height]).toEqual([130, 188]);
+    expect(sizeOf({ elements }, 'V0')).toEqual([100, 56]);
+    expect(g.nodes.find((x) => x.id === 'attr:O:a0')).toMatchObject({ height: 24 });
+  });
+  it('rows to height', () => {
+    expect(sizeOf(objWith(0), 'O')).toEqual([100, 44]);
+    expect(sizeOf(objWith(1), 'O')).toEqual([100, 44]);
+    expect(sizeOf(objWith(6), 'O')).toEqual([100, 108]);
+    expect(sizeOf(objWith(12), 'O')).toEqual([100, 204]);
+    expect(sizeOf(objWith(13), 'O')).toEqual([100, 156]);
+  });
+  it('slab and agregacija use the rule; agregacija keeps its own h0; spec/junction never grow', () => {
+    const slab: PmovIR = { elements: [{ kind: 'slab', id: 'S', name: 'S', ...b, owner: null, attributes: attrs(6) }] };
+    expect(sizeOf(slab, 'S')).toEqual([100, 108]);
+    const agg: PmovIR = { elements: [{ kind: 'agregacija', id: 'G', name: 'G', ...b, attributes: attrs(2), components: [] }] };
+    expect(sizeOf(agg, 'G')).toEqual([140, 72]);
+    const agg2: PmovIR = { elements: [{ kind: 'agregacija', id: 'G', name: 'G', ...b, attributes: attrs(6), components: [] }] };
+    expect(sizeOf(agg2, 'G')).toEqual([140, 108]);
+    const sp = buildDiagramGraph(SPEC_EXAMPLE_IR);
+    expect(sp.nodes.find((x) => x.id === 'spec:Vrsta')).toMatchObject({ width: 34, height: 34 });
+    expect(sp.nodes.find((x) => x.id === 'junction:Vrsta')).toMatchObject({ width: 12, height: 12 });
   });
 });

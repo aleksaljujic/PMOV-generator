@@ -121,3 +121,90 @@ last segment; `angle` in radians (atan2 of last segment).
 - Arrow tip lies on the target outline.
 - Layout of `buildDiagramGraph(MAIN_EXAMPLE_IR)` and `SPEC_EXAMPLE_IR`: all nodes positioned, core node boxes don't
   overlap, saved positions honoured, podtipovi share a row below the junction (`*.integration.test.ts` is fine).
+
+## Additions for busy nodes (Wave 12, `spec/feature_dense_nodes.md`, tasks T40 T41)
+
+### Geometry (T40): whole-diagram geometry, ports, label collisions
+
+```ts
+// src/render/geometry/index.ts (new export; computeEdgeGeometry stays as it is)
+/** Geometry for every edge in the graph at once: spread endpoints (ports) and collision-checked labels.
+ *  `boxes` holds a box for every node (renderers pass measured or graph sizes). Edges whose source or target has
+ *  no box are left out. Deterministic: same input → same output. */
+export function computeDiagramGeometry(graph: DiagramGraph, boxes: Record<string, Box>): Record<string, EdgeGeometry>;
+```
+
+**Ports.** For rectangle-outlined nodes (`objekat`, `slab`, the outer rectangle of `agregacija`): the `straight`
+edges ending on the node are grouped by the side the ray from the box centre toward the other end's centre leaves
+through. Per side, sort by the other end's centre coordinate along that side (x for top/bottom, y for left/right;
+ties by edge id) and place the k endpoints at `L·(i+1)/(k+1)` along the side, clamped to ≥ 6 px from a corner and
+≥ 8 px from a fixed `loopTop` / `loopBottom` / `busDown` endpoint on that side. If the other end is also a
+rectangle node it uses its own port; otherwise its endpoint is `outlineIntersection(shape, box, <this end's port>)`.
+Lines stay straight. Other routes are unchanged. Arrow rule unchanged (tip on the target outline).
+
+**Labels.** Placed in `graph.edges` order. Candidates in preference order: distance 18 %, 28 %, 38 % of the path
+length from the source end (each clamped as in the label rule above: ≥ `textW/2 + 10`, ≤ 45 %); for each distance
+the default perpendicular side first, then the other. Label box: `estimateTextWidth(label, EDGE_FONT_SIZE)` ×
+`EDGE_FONT_SIZE + 2`. Obstacles: every node box (attributes included) and every label already placed. Pick the first
+candidate with no overlap; if none, the one with the least total overlap area (ties: earlier candidate). Output
+format (`label.x`, `label.y`, `anchor`) as in the clarification above.
+
+### Layout (T41): attribute fans and edge length
+
+Replaces the "Attribute placement" bullet above:
+
+- Attributes may use one to four sides of the owner. Prefer sides with the fewest incident core edges, and split
+  the attributes over the chosen sides in proportion to each side's free length.
+- More than 6 pills on one side: two staggered rows (top/bottom side) or columns (left/right side).
+- The inflation used for overlap removal is the space of the fan that is actually used.
+- Desired edge length for an edge touching a core node of degree `d > 6` (all incident edges):
+  `EDGE_LENGTH · min(1.6, 1 + 0.05·(d − 6))`.
+- The existing guarantees (all positioned, saved honoured, deterministic, no overlaps, spec rows, 2D shape) stay; the
+  layout tests that are red today must be green.
+
+## Additions for the grid layout (Wave 13, `spec/feature_grid_layout.md`, tasks T46 T47)
+
+### Layout (T46)
+
+```ts
+export interface LayoutOptions {
+  saved?: PositionMap;
+  /** 'grid' (default): ELK layered with cards. 'free': the Wave 12 stress layout, unchanged. */
+  algorithm?: 'grid' | 'free';
+}
+export type LayoutAlgorithm = 'grid' | 'free';
+/** Card rectangles (box + stubs + pills) by owner node id, for the given positions (used by flow for nudging). */
+export function cardBoxes(graph: DiagramGraph, positions: PositionMap): Record<string, { x: number; y: number; width: number; height: number }>;
+```
+
+**Cards.** Every `objekat` / `slab` / `agregacija` with attributes is laid out as one block. Attributes in source
+order, `#` attributes first; the first `ceil(a/2)` go to the left column, the rest to the right. Each pill's vertical
+centre is at a row centre: rows evenly spaced with pitch `ATTR_ROW_PITCH = 32` and centred on the box. Left pills
+are right-aligned at `box.left − ATTR_STUB (24)`, right pills left-aligned at `box.right + 24`. Staggered (`rows > 6`
+for a side): even rows form the inner column (as above), odd rows the outer column, shifted out by the inner
+column's max pill width + 24, vertical pitch 16 between consecutive rows (outer stubs pass through the 8 px gaps
+between inner pills). Card = bounding box of box and pills.
+
+**Grid algorithm.** ELK `layered`, `elk.direction = DOWN`, nodes = cards (attributes are not ELK nodes), spec blocks
+as today. Edge orientation fed to ELK: veza → `participant₁ → veza → participant₂` (both the same object →
+object → veza twice); slab: owner → slab; agregacija: component → agregacija; spec: supertype → S → junction →
+podtip. Options: `elk.spacing.nodeNode = 40`, `elk.layered.spacing.nodeNodeBetweenLayers = 60`,
+`elk.layered.considerModelOrder.strategy = NODES_AND_EDGES`, `elk.aspectRatio = 1.6`,
+`elk.layered.wrapping.strategy = MULTI_EDGE`. Final positions rounded to `GRID = 10`. `layoutDiagramSync` with
+`grid`: a deterministic rank layout with the same orientation (longest path ranks, model order within a rank,
+cards centred per rank, same spacing). Guarantees: no two cards overlap, every veza is ranked between its two
+participants (different objects), spec rows as today; the C06 "2D shape" aspect check applies to `free` only, and
+to `grid` with bounds 1:3 – 3:1.
+
+**Saved positions.** A saved owner without saved attributes gets its pills at the card offsets; saved attributes
+keep their saved position. `free` keeps the Wave 12 behaviour exactly.
+
+### Geometry (T47)
+
+- **Attribute stubs:** an edge `owner → atribut` where the pill's centre y lies within the owner box's y-range and
+  the pill is fully left or right of the box is drawn as one horizontal segment at the pill's centre y, from the box
+  side to the pill outline (90°). Otherwise as before. These edges are not part of the port distribution.
+- **Relationship ports on cards:** on a rectangle node that has attribute stubs on its left/right side, relationship
+  (non-attribute `straight`) edges use only the top and bottom sides (by the sign of dy), unless |dy| < box height / 2;
+  such an edge keeps its left/right side and its endpoint is moved to the nearest free gap between stub rows.
+- Ports, labels and the other routes as in §Additions for busy nodes.

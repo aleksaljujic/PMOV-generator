@@ -4,3 +4,4 @@ export type { DiagramViewHandle, DiagramViewProps } from './DiagramView';
 export { toReactFlow } from './toReactFlow';
 export type { PmovNodeData, PmovEdgeData } from './toReactFlow';
 export type { InteractionProps } from './interaction';
+export { applyLockedDrag, nudgeToFree } from './drag';

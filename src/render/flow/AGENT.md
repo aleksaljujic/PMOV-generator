@@ -39,6 +39,20 @@ npm run typecheck                 # whole repo must stay green
 - Fill in **Status** and **Contract notes** at the bottom of your task file.
 - If a contract is wrong or missing something, follow `spec/contracts/README.md` rule 5. Never edit frozen files or other folders.
 
+## Current follow-up task (Wave 13, CHANGELOG 2026-11-04, contract C08)
+
+**T48**: [`../../../spec/tasks/T48-flow-locked-drag-snap.md`](../../../spec/tasks/T48-flow-locked-drag-snap.md), contract [`../../../spec/contracts/C08-ui-components.md`](../../../spec/contracts/C08-ui-components.md) §Additions for the grid layout,
+spec [`../../../spec/feature_grid_layout.md`](../../../spec/feature_grid_layout.md). If you were started for T48, read that task file
+instead of the original one in "Read first" item 1. It overrides older follow-up sections. Everything else in this
+file still applies.
+
+## Current follow-up task (Wave 12, CHANGELOG 2026-11-04, contract C08)
+
+**T43**: [`../../../spec/tasks/T43-flow-diagram-geometry.md`](../../../spec/tasks/T43-flow-diagram-geometry.md), contract [`../../../spec/contracts/C08-ui-components.md`](../../../spec/contracts/C08-ui-components.md) §Additions for busy nodes,
+spec [`../../../spec/feature_dense_nodes.md`](../../../spec/feature_dense_nodes.md). If you were started for T43, read that task file
+instead of the original one in "Read first" item 1. It overrides older follow-up sections. Everything else in this
+file still applies.
+
 ## Current follow-up task (Wave 4, CHANGELOG 2026-10-30)
 
 **T19**: [`../../../spec/tasks/T19-shell-language-switch.md`](../../../spec/tasks/T19-shell-language-switch.md), spec [`../../../spec/fix_editor.md`](../../../spec/fix_editor.md).

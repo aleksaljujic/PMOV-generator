@@ -56,3 +56,8 @@ Draw order: edges first, then nodes (nodes hide edge ends), then edge labels wit
 - Special characters (`&`, `<`, quotes, č) are escaped / preserved.
 - Syntax error input → SVG with the diagnostic text, no throw.
 - `graphToSvg` honours `errorElementIds`.
+
+## Addition (Wave 12, `spec/feature_dense_nodes.md`, task T42)
+
+`graphToSvg` takes edge geometry from one `computeDiagramGeometry(graph, boxes)` call (C06 §Additions for busy
+nodes) instead of one `computeEdgeGeometry` call per edge. Output format and the rest of this contract are unchanged.

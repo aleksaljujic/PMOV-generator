@@ -12,6 +12,9 @@ export const STORAGE_KEYS = {
   mode: 'pmov.mode.v1',
   lang: 'pmov.lang.v1',
   sqlDialect: 'pmov.sqlDialect.v1',
+  layout: 'pmov.layout.v1',
+  attrLock: 'pmov.attrLock.v1',
+  snap: 'pmov.snap.v1',
 } as const;
 
 function read(key: string): string | null {
@@ -115,4 +118,31 @@ export function loadLang(): Locale {
 }
 export function saveLang(l: Locale): void {
   write(STORAGE_KEYS.lang, l);
+}
+
+/** Layout algorithm (spec/feature_grid_layout.md): 'grid' (default) or 'free'; anything else falls back to 'grid'. */
+export type LayoutChoice = 'grid' | 'free';
+export function loadLayout(): LayoutChoice {
+  return read(STORAGE_KEYS.layout) === 'free' ? 'free' : 'grid';
+}
+export function saveLayout(l: LayoutChoice): void {
+  write(STORAGE_KEYS.layout, l);
+}
+
+function readBool(key: string): boolean {
+  return read(key) !== 'false';
+}
+/** Attributes follow their object when it is dragged (default true). */
+export function loadAttrLock(): boolean {
+  return readBool(STORAGE_KEYS.attrLock);
+}
+export function saveAttrLock(v: boolean): void {
+  write(STORAGE_KEYS.attrLock, String(v));
+}
+/** Snap manual drags to the 10 px grid (default true). */
+export function loadSnap(): boolean {
+  return readBool(STORAGE_KEYS.snap);
+}
+export function saveSnap(v: boolean): void {
+  write(STORAGE_KEYS.snap, String(v));
 }

@@ -241,3 +241,40 @@ Strings that are not listed are translated by the owning agent in the same style
 - Ctrl+B / Cmd+B toggles the mode app-wide (also from the editor), not inside builder inline text fields.
 - Strings: `Prikaži tekst (Ctrl+B)` / `Show text (Ctrl+B)`, `Sakrij tekst (Ctrl+B)` / `Hide text (Ctrl+B)`.
   `Tekst` / `Interaktivno` are no longer shown in the toolbar.
+
+## Additions for busy nodes (spec/feature_dense_nodes.md, Wave 12, T43; internal, API unchanged)
+
+- `DiagramView` computes edge geometry for the whole diagram with one `computeDiagramGeometry(graph, boxes)` call
+  (C06 §Additions for busy nodes) from the current node positions and measured sizes, and recomputes it while a
+  node is dragged. Each `pmov` edge draws the geometry for its id and falls back to `computeEdgeGeometry` if it has
+  none. `DiagramViewProps`, `PmovNodeData`, `PmovEdgeData` and `toReactFlow` are unchanged.
+
+## Additions for the grid layout (spec/feature_grid_layout.md, Wave 13, T48 T49; additive)
+
+```ts
+// src/render/flow/index.ts — new optional DiagramViewProps
+layoutAlgorithm?: 'grid' | 'free';        // passed to layoutDiagram; default 'grid'
+lockAttributes?: boolean;                 // default true
+snapToGrid?: boolean;                     // default true
+/** Drag stop of a (possibly multi-node) move: every node whose position changed. Preferred over onNodeMoved. */
+onNodesMoved?(moves: Record<string, Point>): void;
+
+// pure helpers, also exported (tested without React Flow)
+/** Locked drag: dragging an owner or one of its pills moves the owner and all its pills by the same delta.
+ *  `alt` = Alt-drag of one pill: only that pill moves. Returns the new positions of every node that moved. */
+export function applyLockedDrag(graph: DiagramGraph, positions: PositionMap, draggedId: string,
+  to: Point, opts: { lock: boolean; alt: boolean }): Record<string, Point>;
+/** On drop: if the dragged card overlaps another card, the nearest free position on a 10 px grid (spiral, ≤ 300 px);
+ *  null if it is free already or nothing free is found. Returns the delta to apply to the whole card. */
+export function nudgeToFree(graph: DiagramGraph, positions: PositionMap, ownerId: string): Point | null;
+```
+
+- `DiagramView`: locked drag live while dragging (pills follow), Alt held at drag start → single-pill drag;
+  React Flow `snapToGrid` `[10, 10]` and `<Background variant="dots" gap={20}>` when `snapToGrid`; on drop apply
+  `nudgeToFree`; then one `onNodesMoved` call (falls back to `onNodeMoved` per node when `onNodesMoved` is absent).
+- Shell storage: `STORAGE_KEYS.layout = 'pmov.layout.v1'` (`'grid' | 'free'`, default `'grid'`),
+  `STORAGE_KEYS.attrLock = 'pmov.attrLock.v1'` (boolean, default true), `STORAGE_KEYS.snap = 'pmov.snap.v1'`
+  (boolean, default true) with `load…` / `save…` functions.
+- Toolbar: "Raspored: Mreža | Slobodan" / "Layout: Grid | Free" select (change = fresh layout, like Ponovo
+  rasporedi), toggles "Atributi prate objekat" / "Attributes follow object" and "Poravnaj na mrežu" /
+  "Snap to grid". One drag = one undo step (`onNodesMoved`).
