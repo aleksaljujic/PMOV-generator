@@ -1,39 +1,11 @@
 import type { DiagramGraph, DiagramNode, PositionMap } from '../graph/types';
 import { ATTR_GAP_TRIES, ATTR_PITCH_PAD } from './constants';
-
-type Side = 'right' | 'left' | 'bottom' | 'top';
-const SIDE_ORDER: Side[] = ['right', 'left', 'bottom', 'top'];
-
-interface Rect { x: number; y: number; w: number; h: number }
+import { capacity, fan, fanPlan, freeLength, SIDE_ORDER, splitCounts, type Rect, type Side } from './fan';
 
 function overlapArea(a: Rect, b: Rect, pad = 2): number {
   const ox = Math.min(a.x + a.w + pad, b.x + b.w) - Math.max(a.x - pad, b.x);
   const oy = Math.min(a.y + a.h + pad, b.y + b.h) - Math.max(a.y - pad, b.y);
   return ox > 0 && oy > 0 ? ox * oy : 0;
-}
-
-function fan(owner: Rect, attrs: DiagramNode[], side: Side, gap: number): Rect[] {
-  const cx = owner.x + owner.w / 2;
-  const cy = owner.y + owner.h / 2;
-  const out: Rect[] = [];
-  if (side === 'left' || side === 'right') {
-    const pitch = Math.max(...attrs.map((a) => a.height)) + ATTR_PITCH_PAD;
-    const total = (attrs.length - 1) * pitch;
-    attrs.forEach((a, i) => {
-      const y = cy - total / 2 + i * pitch - a.height / 2;
-      const x = side === 'right' ? owner.x + owner.w + gap : owner.x - gap - a.width;
-      out.push({ x, y, w: a.width, h: a.height });
-    });
-  } else {
-    const pitch = Math.max(...attrs.map((a) => a.width)) + ATTR_PITCH_PAD;
-    const total = (attrs.length - 1) * pitch;
-    attrs.forEach((a, i) => {
-      const x = cx - total / 2 + i * pitch - a.width / 2;
-      const y = side === 'bottom' ? owner.y + owner.h + gap : owner.y - gap - a.height;
-      out.push({ x, y, w: a.width, h: a.height });
-    });
-  }
-  return out;
 }
 
 /** Places every attribute node around its owner. Returns positions for attribute nodes only. */
@@ -97,27 +69,37 @@ export function placeAttributes(graph: DiagramGraph, core: PositionMap, saved: P
     }
     const sides = [...SIDE_ORDER].sort((a, b) => counts[a] - counts[b] || SIDE_ORDER.indexOf(a) - SIDE_ORDER.indexOf(b));
 
-    // candidate assignments: single side, or the two best sides when many attributes
+    // candidates: every subset of `k` sides (fewest incident core edges first), then single sides as a fallback
+    const { k, two } = fanPlan(owner, attrs);
     type Cand = { sides: Side[]; rank: number };
-    const cands: Cand[] = [];
-    if (attrs.length > 4) {
-      // pairs ordered by total edge count
-      const pairs: Side[][] = [];
-      for (let i = 0; i < sides.length; i++) for (let j = i + 1; j < sides.length; j++) pairs.push([sides[i]!, sides[j]!]);
-      pairs.forEach((p, k) => cands.push({ sides: p, rank: k }));
-    }
-    sides.forEach((s, k) => cands.push({ sides: [s], rank: 100 + k }));
+    const subsets = (n: number): Side[][] => {
+      const all: Side[][] = [];
+      const rec = (start: number, cur: Side[]): void => {
+        if (cur.length === n) { all.push([...cur]); return; }
+        for (let q = start; q < sides.length; q++) rec(q + 1, [...cur, sides[q]!]);
+      };
+      rec(0, []);
+      return all.sort((x, y) => x.reduce((t, z) => t + counts[z], 0) - y.reduce((t, z) => t + counts[z], 0));
+    };
+    const room = (p: Side[]): number => p.reduce((t, x) => t + capacity(owner, attrs, x, two), 0);
+    const cands: Cand[] = subsets(k).filter((p) => room(p) >= attrs.length).map((p, r) => ({ sides: p, rank: r }));
+    if (cands.length === 0) cands.push({ sides: [...SIDE_ORDER], rank: 0 });
+    // fallbacks: one side, as long as it holds every pill
+    sides.forEach((s, r) => { if (k > 1 && capacity(owner, attrs, s, true) >= attrs.length) cands.push({ sides: [s], rank: 100 + r }); });
 
     let best: { rects: Rect[]; score: number } | null = null;
     const others = [...obstacles.filter((o) => o.id !== owner.id).map((o) => o.r), ...placed];
     outer: for (const c of cands) {
+      const used = SIDE_ORDER.filter((x) => c.sides.includes(x));
+      const share = splitCounts(attrs.length, used.map((x) => freeLength(owner, x, counts[x])), used.map((x) => capacity(owner, attrs, x, two || used.length === 1)));
       for (const gap of ATTR_GAP_TRIES) {
         const rects: Rect[] = [];
-        if (c.sides.length === 1) rects.push(...fan(orect, attrs, c.sides[0]!, gap));
-        else {
-          const half = Math.ceil(attrs.length / 2);
-          rects.push(...fan(orect, attrs.slice(0, half), c.sides[0]!, gap), ...fan(orect, attrs.slice(half), c.sides[1]!, gap));
-        }
+        let from = 0;
+        used.forEach((x, q) => {
+          const part = attrs.slice(from, from + share[q]!);
+          from += share[q]!;
+          if (part.length) rects.push(...fan(orect, part, x, gap));
+        });
         let score = 0;
         for (const r of rects) for (const o of others) score += overlapArea(r, o);
         score += c.sides.reduce((s, x) => s + counts[x], 0) * 0.01 + c.rank * 0.001 + gap * 0.0001;

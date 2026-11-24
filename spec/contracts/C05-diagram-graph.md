@@ -155,3 +155,23 @@ Set by `buildDiagramGraph`; renderers must use `node.width/height` and never re-
 |---|---|---|
 | `MAIN_EXAMPLE_IR` | 28 = objekat 5, veza 3, slab 1, agregacija 1, atribut 18 | 27 = veza 6, slab 1, agregacija 2, atribut 18 (arrows: 3) |
 | `SPEC_EXAMPLE_IR` | 19 = objekat 6, spec 1, junction 1, veza 1, atribut 10 | 18 = super 1, link 1, sub 4, veza 2 (`loopTop`+`loopBottom`), atribut 10 (arrows: 4) |
+
+## Additions for busy nodes (Wave 12, `spec/feature_dense_nodes.md` §A, task T39)
+
+**Size by degree.** For `objekat`, `slab` and `agregacija`, after the table above gives the base size `w0 × h0`:
+`n` = number of graph edges with the node as source or target (attribute edges included), `PORT_PITCH = 22`.
+If `2·(w0 + h0) ≥ n·22` the size is unchanged. Otherwise `P = n·22`, `h = max(h0, round(P / 7))`,
+`w = max(w0, round(P/2 − h))`. veza, atribut, spec and junction never grow. Renderers still use `node.width/height`
+as given (no re-measure). Nodes with n ≤ 13 at the minimum size keep today's size, so existing fixtures are unchanged.
+
+## Additions for the grid layout (Wave 13, `spec/feature_grid_layout.md` §1, task T45)
+
+**Replaces** §Additions for busy nodes (size by degree). For `objekat`, `slab`, `agregacija` with base size `w0 × h0`
+from the §Sizes table, `a` = number of its attribute nodes, `r` = number of its non-attribute incident edges:
+
+- `rows = ceil(a / 2)` (left column takes `ceil(a/2)`, right column the rest).
+- `rows ≤ 6`: `h = max(h0, rows·32 + 12)`. `rows > 6` (staggered columns): `h = max(h0, ceil(rows/2)·32 + 28)`.
+- `w = max(w0, round(r·11 + 20))` (relationship ports on top and bottom, `PORT_PITCH = 22` per side pair).
+
+Constants exported from `src/render/graph/index.ts`: `ATTR_ROW_PITCH = 32`, `PORT_PITCH = 22`. Other node types never
+grow.

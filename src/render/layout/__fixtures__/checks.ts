@@ -2,6 +2,7 @@ import { expect } from 'vitest';
 import type { DiagramGraph, PositionMap } from '../../graph/types';
 import { EDGE_LENGTH } from '../constants';
 import { attrCountByOwner, inflation } from '../inflate';
+import { busyFactor } from '../stress';
 
 interface R { x: number; y: number; w: number; h: number }
 const hit = (a: R, b: R): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
@@ -49,6 +50,7 @@ export function checkSpec(graph: DiagramGraph, pos: PositionMap): void {
 
 /** 2D shape checks: several y bands, balanced aspect ratio, veza between its participants. */
 export function checkShape(graph: DiagramGraph, pos: PositionMap): void {
+  const degree = (id: string): number => graph.edges.filter((e) => e.source === id || e.target === id).length;
   const center = (id: string) => {
     const n = graph.nodes.find((x) => x.id === id)!;
     return { x: pos[id]!.x + n.width / 2, y: pos[id]!.y + n.height / 2 };
@@ -73,12 +75,16 @@ export function checkShape(graph: DiagramGraph, pos: PositionMap): void {
       .filter((e) => coreIds.has(e.source) && coreIds.has(e.target) && (e.source === v.id || e.target === v.id) && e.source !== e.target)
       .map((e) => (e.source === v.id ? e.target : e.source));
     if (parts.length < 2) continue;
-    const pc = parts.map(center);
+    const counts = attrCountByOwner(graph);
+    // C06 (busy nodes): the veza sits outside the fan reserved around a participant (inflation), and edges at a core
+    // node of degree d > 6 are stretched, so the allowed distance is measured from the inflated box and grows with d
+    const pad = (id: string) => inflation(graph.nodes.find((x) => x.id === id)!, counts.get(id) ?? 0, graph);
+    const pc = parts.map((id) => ({ ...center(id), ...pad(id) }));
     const c = center(v.id);
-    const L = EDGE_LENGTH;
-    expect(c.x).toBeGreaterThanOrEqual(Math.min(...pc.map((p) => p.x)) - L);
-    expect(c.x).toBeLessThanOrEqual(Math.max(...pc.map((p) => p.x)) + L);
-    expect(c.y).toBeGreaterThanOrEqual(Math.min(...pc.map((p) => p.y)) - L);
-    expect(c.y).toBeLessThanOrEqual(Math.max(...pc.map((p) => p.y)) + L);
+    const L = EDGE_LENGTH * Math.max(1, ...[v.id, ...parts].map((id) => busyFactor(degree(id))));
+    expect(c.x).toBeGreaterThanOrEqual(Math.min(...pc.map((p) => p.x - p.padX)) - L);
+    expect(c.x).toBeLessThanOrEqual(Math.max(...pc.map((p) => p.x + p.padX)) + L);
+    expect(c.y).toBeGreaterThanOrEqual(Math.min(...pc.map((p) => p.y - p.padY)) - L);
+    expect(c.y).toBeLessThanOrEqual(Math.max(...pc.map((p) => p.y + p.padY)) + L);
   }
 }

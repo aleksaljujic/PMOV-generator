@@ -98,6 +98,48 @@ export function removeOverlaps(items: number[][], s: State): void {
   }
 }
 
+/**
+ * Moves every free-standing veza to the free spot (inflated boxes + NODE_GAP) nearest to the centre of its
+ * participants, searched on a 10 px grid around that centre. Keeps relationships of busy nodes (large attribute
+ * fans, stretched edges) close to their participants. Only moves when it gains at least 20 px.
+ */
+export function pullVeza(m: CoreModel, s: State, items: number[][]): void {
+  const n = m.nodes.length;
+  const single = new Set(items.filter((it) => it.length === 1).map((it) => it[0]!));
+  const nbrs: Set<number>[] = Array.from({ length: n }, () => new Set<number>());
+  for (const [a, b] of m.edges) { nbrs[a]!.add(b); nbrs[b]!.add(a); }
+  const free = (i: number, x: number, y: number): boolean => {
+    for (let j = 0; j < n; j++) {
+      if (j === i) continue;
+      const ox = (s.w[i]! + s.w[j]!) / 2 + s.px[i]! + s.px[j]! + NODE_GAP - Math.abs(x - s.cx[j]!);
+      const oy = (s.h[i]! + s.h[j]!) / 2 + s.py[i]! + s.py[j]! + NODE_GAP - Math.abs(y - s.cy[j]!);
+      if (ox > 1e-6 && oy > 1e-6) return false;
+    }
+    return true;
+  };
+  const STEP = 10;
+  for (let k = 0; k < 2 * n; k++) {
+    const i = k % n;
+    if (m.nodes[i]!.type !== 'veza' || !single.has(i) || nbrs[i]!.size === 0) continue;
+    const parts = [...nbrs[i]!];
+    const tx = parts.reduce((t, j) => t + s.cx[j]!, 0) / parts.length;
+    const ty = parts.reduce((t, j) => t + s.cy[j]!, 0) / parts.length;
+    const here = Math.hypot(tx - s.cx[i]!, ty - s.cy[i]!);
+    const reach = Math.min(here, 400);
+    let best = { d: here - 20, x: s.cx[i]!, y: s.cy[i]!, moved: false };
+    for (let gy = -reach; gy <= reach; gy += STEP) {
+      for (let gx = -reach; gx <= reach; gx += STEP) {
+        const x = tx + gx;
+        const y = ty + gy;
+        const d = Math.hypot(gx, gy);
+        if (d >= best.d || !free(i, x, y)) continue;
+        best = { d, x, y, moved: true };
+      }
+    }
+    if (best.moved) { s.cx[i] = best.x; s.cy[i] = best.y; }
+  }
+}
+
 /** Shift so the inflated bounding box starts at MARGIN and return top-left positions. */
 export function toPositions(m: CoreModel, s: State): PositionMap {
   const n = m.nodes.length;
@@ -109,7 +151,7 @@ export function toPositions(m: CoreModel, s: State): PositionMap {
   }
   const out: PositionMap = {};
   for (let i = 0; i < n; i++) {
-    out[m.nodes[i]!.id] = { x: s.cx[i]! - s.w[i]! / 2 - minX + MARGIN + s.px[i]!, y: s.cy[i]! - s.h[i]! / 2 - minY + MARGIN + s.py[i]! };
+    out[m.nodes[i]!.id] = { x: s.cx[i]! - s.w[i]! / 2 - minX + MARGIN, y: s.cy[i]! - s.h[i]! / 2 - minY + MARGIN };
   }
   return out;
 }
@@ -117,6 +159,8 @@ export function toPositions(m: CoreModel, s: State): PositionMap {
 /** Shared post-processing for both layout paths. */
 export function postProcess(m: CoreModel, s: State): PositionMap {
   enforceSpec(m, s);
-  removeOverlaps(buildItems(m), s);
+  const items = buildItems(m);
+  removeOverlaps(items, s);
+  pullVeza(m, s, items);
   return toPositions(m, s);
 }

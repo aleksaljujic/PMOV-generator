@@ -6,20 +6,22 @@ import type { PositionMap } from '../graph/types';
 import { checkLayout, checkShape, checkSpec } from './__fixtures__/checks';
 import { layoutDiagram, layoutDiagramSync } from './index';
 
+const FREE = { algorithm: 'free' as const };
+
 describe.each(EXAMPLES)('layout integration: $id', (ex) => {
   const ir = compile(ex.source).ir!;
   const g = buildDiagramGraph(ir);
   const hasSpec = g.nodes.some((n) => n.type === 'spec');
 
   it('sync: positions, no overlaps, spec rows, 2D shape', () => {
-    const r = layoutDiagramSync(g);
+    const r = layoutDiagramSync(g, FREE);
     checkLayout(g, r);
     if (hasSpec) checkSpec(g, r);
     checkShape(g, r);
   });
 
   it('ELK: positions, no overlaps, spec rows, 2D shape', async () => {
-    const r = await layoutDiagram(g);
+    const r = await layoutDiagram(g, FREE);
     checkLayout(g, r);
     if (hasSpec) checkSpec(g, r);
     checkShape(g, r);
@@ -30,17 +32,17 @@ describe.each(EXAMPLES)('layout integration: $id', (ex) => {
     const attr = g.nodes.find((n) => n.layoutRole === 'attribute')?.id;
     const saved: PositionMap = { [first]: { x: 777, y: 888 } };
     if (attr) saved[attr] = { x: -5, y: 5 };
-    for (const r of [layoutDiagramSync(g, { saved }), await layoutDiagram(g, { saved })]) {
+    for (const r of [layoutDiagramSync(g, { saved, algorithm: 'free' }), await layoutDiagram(g, { saved, algorithm: 'free' })]) {
       for (const [id, p] of Object.entries(saved)) expect(r[id]).toEqual(p);
     }
-    expect(layoutDiagramSync(g)).toEqual(layoutDiagramSync(g));
-    expect(await layoutDiagram(g)).toEqual(await layoutDiagram(g));
+    expect(layoutDiagramSync(g, FREE)).toEqual(layoutDiagramSync(g, FREE));
+    expect(await layoutDiagram(g, FREE)).toEqual(await layoutDiagram(g, FREE));
   });
 });
 
 it('sync layout of a 60-node core graph is fast', () => {
   const g = buildDiagramGraph(compile(EXAMPLES[3]!.source).ir!);
   const t = performance.now();
-  layoutDiagramSync(g);
+  layoutDiagramSync(g, FREE);
   expect(performance.now() - t).toBeLessThan(200);
 });

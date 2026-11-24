@@ -13,6 +13,8 @@ specializations (`specijalizacija`). Each participant of a relationship carries 
 ## The DSL
 
 Full syntax reference for students: [docs/syntax.md](docs/syntax.md).
+In the app, the **? Pomoć / ? Help** button in the toolbar (or F1) opens a short syntax reference on the right;
+Esc or × closes it.
 
 Every construct is a block:
 
@@ -143,6 +145,18 @@ Messages are in Serbian, with line and column, e.g. `greška E04 (red 12, kol 1)
 
 On a syntax error the last valid diagram stays on screen. Layout drags are stored in `localStorage` (never in the DSL);
 "Ponovo rasporedi" clears them.
+
+### Layout, locked attributes and snapping
+
+- **Raspored / Layout** in the toolbar picks the layout: *Mreža / Grid* (default, layered grid of cards) or
+  *Slobodan / Free* (stress layout). Changing it clears saved positions and lays the diagram out again (one undo step).
+- **Atributi prate objekat / Attributes follow object** (on by default): dragging an object, slab or agregacija moves its
+  attribute pills with it. Hold **Alt** while dragging a pill to move only that pill; switch the toggle off to move every
+  pill freely.
+- **Poravnaj na mrežu / Snap to grid** (on by default): drags snap to a 10 px grid, and a card dropped onto another card
+  is nudged to the nearest free spot.
+- A whole drag is one history step (Poništi undoes it). The three settings are stored in `localStorage`
+  (`pmov.layout.v1`, `pmov.attrLock.v1`, `pmov.snap.v1`).
 
 ## Running
 

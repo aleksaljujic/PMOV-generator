@@ -1,12 +1,18 @@
 import type { CoreModel } from './model';
-import { EDGE_LENGTH } from './constants';
+import { BUSY_DEGREE, BUSY_MAX_FACTOR, EDGE_LENGTH } from './constants';
 
 export interface Vec { x: number[]; y: number[] }
 
-/** Desired center distance between neighbours i,j given inflated sizes. */
-export function edgeLength(w: number[], h: number[], i: number, j: number): number {
+/** Stretch factor of an edge touching a node of degree `d`: 1 up to BUSY_DEGREE, then +5 % per extra edge, at most 1.6. */
+export function busyFactor(d: number): number {
+  return d > BUSY_DEGREE ? Math.min(BUSY_MAX_FACTOR, 1 + 0.05 * (d - BUSY_DEGREE)) : 1;
+}
+
+/** Desired center distance between neighbours i,j given inflated sizes and node degrees. */
+export function edgeLength(w: number[], h: number[], i: number, j: number, degree: number[] = []): number {
   const r = (k: number): number => Math.hypot(w[k]! / 2, h[k]! / 2) * 0.75;
-  return Math.max(EDGE_LENGTH, r(i) + r(j) + 50);
+  const f = busyFactor(Math.max(degree[i] ?? 0, degree[j] ?? 0));
+  return Math.max(EDGE_LENGTH * f, r(i) + r(j) + 50);
 }
 
 /** All-pairs weighted shortest paths (Floyd-Warshall); disconnected pairs get a large finite distance. */
@@ -15,7 +21,7 @@ export function distances(m: CoreModel, w: number[], h: number[]): number[][] {
   const INF = Infinity;
   const d: number[][] = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 0 : INF)));
   for (const [a, b] of m.edges) {
-    const L = edgeLength(w, h, a, b);
+    const L = edgeLength(w, h, a, b, m.degree);
     if (L < d[a]![b]!) { d[a]![b] = L; d[b]![a] = L; }
   }
   for (let k = 0; k < n; k++) for (let i = 0; i < n; i++) {
@@ -74,10 +80,11 @@ function init(m: CoreModel, d: number[][]): Vec {
 }
 
 /** Stress majorization (localized SMACOF), fixed iteration count, no randomness. Returns centers. */
-export function stressLayout(m: CoreModel, w: number[], h: number[], iterations = 120): Vec {
+/** `ew`/`eh` (default `w`/`h`) are the sizes the desired edge lengths are derived from, `w`/`h` the inflated sizes. */
+export function stressLayout(m: CoreModel, w: number[], h: number[], ew: number[] = w, eh: number[] = h, iterations = 120): Vec {
   const n = m.nodes.length;
   if (n === 0) return { x: [], y: [] };
-  const d = distances(m, w, h);
+  const d = distances(m, ew, eh);
   const p = init(m, d);
   if (n === 1) return { x: [0], y: [0] };
   for (let it = 0; it < iterations; it++) {

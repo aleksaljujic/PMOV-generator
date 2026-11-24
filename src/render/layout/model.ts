@@ -13,6 +13,8 @@ export interface CoreModel {
   /** Oriented, de-duplicated, non-loop core edges (indices). */
   edges: Array<[number, number]>;
   groups: SpecGroup[];
+  /** Per node (same index as `nodes`): number of graph edges with the node as source or target (attributes included). */
+  degree: number[];
 }
 
 /** Core nodes + oriented edges (supertype → S → junction → podtipovi). */
@@ -59,5 +61,13 @@ export function buildCore(graph: DiagramGraph): CoreModel {
     else if (b.type === 'junction') { const g = groups.get(junctionToSpec.get(b.id) ?? ''); g?.subs.push(a.id); add(b.id, a.id); }
     else add(a.id, b.id);
   }
-  return { nodes, index, edges, groups: [...groups.values()] };
+  const degree = nodes.map(() => 0);
+  for (const e of graph.edges) {
+    const a = index.get(e.source);
+    const b = index.get(e.target);
+    if (a !== undefined) degree[a]!++;
+    if (b !== undefined && e.target !== e.source) degree[b]!++;
+  }
+  // attribute edges count for their owner too (the attribute node itself is not a core node)
+  return { nodes, index, edges, groups: [...groups.values()], degree };
 }

@@ -14,3 +14,7 @@ export const ATTR_GAP_TRIES = [36, 50, 70, 100];
 export const ATTR_PITCH_PAD = 8;
 /** Outer margin of the whole layout. */
 export const MARGIN = 20;
+/** Degree above which edges of a node get longer (room for the fan of attributes and ports). */
+export const BUSY_DEGREE = 6;
+/** Longest stretch factor of a desired edge length. */
+export const BUSY_MAX_FACTOR = 1.6;

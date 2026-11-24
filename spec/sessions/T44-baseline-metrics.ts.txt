@@ -1,0 +1,36 @@
+import { compile } from '/home/aleksa/pmov_generator/src/lang/index.ts';
+import { buildDiagramGraph, estimateTextWidth } from '/home/aleksa/pmov_generator/src/render/graph/index.ts';
+import { layoutDiagram } from '/home/aleksa/pmov_generator/src/render/layout/index.ts';
+import { boxOf, computeEdgeGeometry } from '/home/aleksa/pmov_generator/src/render/geometry/index.ts';
+import { EXAMPLES } from '/home/aleksa/pmov_generator/src/examples/index.ts';
+type R = { x: number; y: number; w: number; h: number };
+const ov = (a: R, b: R) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)) > 1;
+for (const ex of EXAMPLES) {
+  const ir = compile(ex.source).ir!;
+  const g = buildDiagramGraph(ir);
+  const pos = await layoutDiagram(g);
+  const byId = new Map(g.nodes.map((n) => [n.id, n]));
+  const boxes = new Map(g.nodes.map((n) => [n.id, boxOf(n, pos[n.id]!)]));
+  const labels: { id: string; r: R; src: string; tgt: string }[] = [];
+  const ends = new Map<string, { x: number; y: number }[]>();
+  for (const e of g.edges) {
+    const geo = computeEdgeGeometry(e, { node: byId.get(e.source)!, box: boxes.get(e.source)! }, { node: byId.get(e.target)!, box: boxes.get(e.target)! });
+    const p0 = geo.points[0]!;
+    (ends.get(e.source) ?? ends.set(e.source, []).get(e.source)!).push(p0);
+    if (geo.label && e.label) {
+      const w = estimateTextWidth(e.label, 12), h = 14;
+      const x = geo.label.anchor === 'start' ? geo.label.x : geo.label.anchor === 'end' ? geo.label.x - w : geo.label.x - w / 2;
+      labels.push({ id: e.id, r: { x, y: geo.label.y - h / 2, w, h }, src: e.source, tgt: e.target });
+    }
+  }
+  let ll = 0, lCore = 0, lAttr = 0;
+  for (let i = 0; i < labels.length; i++) for (let j = i + 1; j < labels.length; j++) if (ov(labels[i]!.r, labels[j]!.r)) ll++;
+  for (const l of labels) for (const n of g.nodes) {
+    const b = boxes.get(n.id)!; const r = { x: b.x, y: b.y, w: b.width, h: b.height };
+    if (ov(l.r, r)) n.layoutRole === 'core' ? lCore++ : lAttr++;
+  }
+  let close = 0;
+  for (const pts of ends.values()) for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) if (Math.hypot(pts[i]!.x - pts[j]!.x, pts[i]!.y - pts[j]!.y) < 8) close++;
+  const maxDeg = Math.max(...g.nodes.map((n) => g.edges.filter((e) => e.source === n.id || e.target === n.id).length));
+  console.log(`${ex.id}: labels=${labels.length} label×label=${ll} label×core=${lCore} label×attr=${lAttr} endpoints<8px=${close} maxDegree=${maxDeg}`);
+}

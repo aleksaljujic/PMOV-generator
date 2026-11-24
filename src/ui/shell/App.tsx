@@ -27,21 +27,28 @@ import {
   clearPositions,
   loadDg0Mode,
   loadSqlDialect,
+  loadAttrLock,
   loadEditorWidth,
+  loadLayout,
+  loadSnap,
   loadLang,
   loadMode,
   loadPositions,
   loadSource,
   saveDg0Mode,
   saveSqlDialect,
+  saveAttrLock,
   saveEditorWidth,
+  saveLayout,
+  saveSnap,
   saveLang,
   saveMode,
   savePositions,
   saveSource,
 } from './storage';
-import type { Mode } from './storage';
+import type { LayoutChoice, Mode } from './storage';
 import { SHELL_STRINGS } from './strings';
+import { HelpPanel } from './HelpPanel';
 import { Toolbar } from './Toolbar';
 import { useCompile } from './useCompile';
 import './styles.css';
@@ -109,6 +116,9 @@ export function App(): JSX.Element {
   const [dg0Mode, setDg0Mode] = useState<Dg0Mode>(() => loadDg0Mode());
   const [savedPositions, setSavedPositions] = useState<PositionMap>(() => loadPositions());
   const [layoutNonce, setLayoutNonce] = useState(0);
+  const [layoutAlgorithm, setLayoutAlgorithm] = useState<LayoutChoice>(() => loadLayout());
+  const [lockAttributes, setLockAttributes] = useState<boolean>(() => loadAttrLock());
+  const [snapToGrid, setSnapToGrid] = useState<boolean>(() => loadSnap());
   const [editorWidth, setEditorWidth] = useState<number>(() => loadEditorWidth() ?? 520);
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [highlightRange, setHighlightRange] = useState<{ from: number; to: number } | null>(null);
@@ -255,6 +265,20 @@ export function App(): JSX.Element {
     else editorRef.current?.focus();
   }, [interactive]);
 
+  // Syntax help drawer (T51); F1 toggles it.
+  const [helpOpen, setHelpOpen] = useState(false);
+  const toggleHelp = useCallback(() => setHelpOpen((o) => !o), []);
+  const closeHelp = useCallback(() => setHelpOpen(false), []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'F1' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      e.preventDefault();
+      toggleHelp();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [toggleHelp]);
+
   // Ctrl+B / Cmd+B toggles the sidebar, also from the editor, but not from builder text fields.
   const modeRef = useRef(mode);
   modeRef.current = mode;
@@ -398,6 +422,20 @@ export function App(): JSX.Element {
     savePositions(next);
   }, []);
 
+  /** One card drag (possibly many nodes) = one history step. */
+  const onNodesMoved = useCallback(
+    (moves: Record<string, Point>) => {
+      if (Object.keys(moves).length === 0) return;
+      const prev = positionsRef.current;
+      pushHistory({ source: sourceRef.current, positions: prev });
+      const next = { ...prev, ...moves };
+      positionsRef.current = next;
+      setSavedPositions(next);
+      savePositions(next);
+    },
+    [pushHistory],
+  );
+
   /** C10 §7: a diagnostic without an element whose span lies in a domain / constraint opens that tab. */
   const routeDiagnostic = useCallback(
     (d: Diagnostic): boolean => {
@@ -469,6 +507,27 @@ export function App(): JSX.Element {
     resetPositions();
     setLayoutNonce((n) => n + 1);
   }, [resetPositions]);
+
+  const onLayoutChange = useCallback(
+    (l: LayoutChoice) => {
+      if (l === layoutAlgorithm) return;
+      setLayoutAlgorithm(l);
+      saveLayout(l);
+      // Like "Ponovo rasporedi": saved positions of the old layout are dropped (one history step) and a fresh layout runs.
+      pushHistory({ source: sourceRef.current, positions: positionsRef.current });
+      resetPositions();
+      setLayoutNonce((n) => n + 1);
+    },
+    [layoutAlgorithm, pushHistory, resetPositions],
+  );
+  const onLockAttributesChange = useCallback((on: boolean) => {
+    setLockAttributes(on);
+    saveAttrLock(on);
+  }, []);
+  const onSnapToGridChange = useCallback((on: boolean) => {
+    setSnapToGrid(on);
+    saveSnap(on);
+  }, []);
 
   const onPickExample = useCallback(
     (id: string) => {
@@ -626,6 +685,10 @@ export function App(): JSX.Element {
               selectedElementId={selectedElementId}
               onElementClick={onElementClick}
               onNodeMoved={onNodeMoved}
+              onNodesMoved={onNodesMoved}
+              layoutAlgorithm={layoutAlgorithm}
+              lockAttributes={lockAttributes}
+              snapToGrid={snapToGrid}
               locale={locale}
               {...(interactive ? builder.diagramProps : {})}
             />
@@ -670,7 +733,16 @@ export function App(): JSX.Element {
         onImportJson={(f) => void onImportJson(f)}
         locale={locale}
         onLocaleChange={changeLocale}
+        layout={layoutAlgorithm}
+        onLayoutChange={onLayoutChange}
+        lockAttributes={lockAttributes}
+        onLockAttributesChange={onLockAttributesChange}
+        snapToGrid={snapToGrid}
+        onSnapToGridChange={onSnapToGridChange}
+        helpOpen={helpOpen}
+        onHelpToggle={toggleHelp}
       />
+      <div className="app__body">
       <SplitPane
         left={left}
         right={right}
@@ -680,6 +752,8 @@ export function App(): JSX.Element {
         collapsed={interactive}
         onLeftTransitionEnd={interactive ? finishClose : undefined}
       />
+      <HelpPanel open={helpOpen} onClose={closeHelp} locale={locale} />
+      </div>
     </div>
   );
 }

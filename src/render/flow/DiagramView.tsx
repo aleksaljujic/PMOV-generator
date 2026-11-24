@@ -1,6 +1,8 @@
 // Owned by T05. Contract C08 §DiagramView.
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
+  Background,
+  BackgroundVariant,
   Controls,
   MiniMap,
   ReactFlow,
@@ -13,6 +15,8 @@ import type { Locale } from '../../lang';
 import { layoutDiagram } from '../layout';
 import type { DiagramGraph, Point, PositionMap } from '../graph/types';
 import { FILL, STROKE } from '../style';
+import { applyLockedDrag, nudgeToFree } from './drag';
+import { EdgeGeometryProvider } from './edgeGeometry';
 import { PmovEdge } from './PmovEdge';
 import {
   AgregacijaNode,
@@ -45,6 +49,14 @@ interface DiagramViewBaseProps {
   onNodeMoved(nodeId: string, position: Point): void;
   /** T19 (additive): UI language of the empty state; default 'sr'. */
   locale?: Locale;
+  /** T48 (additive): layout algorithm passed to `layoutDiagram`; default 'grid'. A change re-lays out and fits. */
+  layoutAlgorithm?: 'grid' | 'free';
+  /** T48 (additive): dragging an object moves its pills too; default true. */
+  lockAttributes?: boolean;
+  /** T48 (additive): snap drags to a 10 px grid and show a dot background; default true. */
+  snapToGrid?: boolean;
+  /** T48 (additive): drag stop; every node whose position changed. Preferred over `onNodeMoved`. */
+  onNodesMoved?(moves: Record<string, Point>): void;
 }
 
 /** C09 additive props (all optional): see ./interaction. */
@@ -84,6 +96,7 @@ const emptyStyle = {
 const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(function DiagramViewInner(props, ref) {
   const { graph, savedPositions, layoutNonce, errorElementIds, selectedElementId, onElementClick, onNodeMoved } =
     props;
+  const { layoutAlgorithm, lockAttributes = true, snapToGrid = true, onNodesMoved } = props;
   const { fitView, setCenter, getZoom } = useReactFlow();
   const [positions, setPositions] = useState<PositionMap | null>(null);
   const positionsRef = useRef<PositionMap | null>(null);
@@ -97,7 +110,12 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
 
   const signature = structureSignature(graph);
   const lastNonce = useRef<number | null>(null);
+  const lastAlgorithm = useRef(layoutAlgorithm);
   const lastRunId = useRef(0);
+  const altRef = useRef(false);
+  const dragStartRef = useRef<PositionMap | null>(null);
+  const lockRef = useRef(lockAttributes);
+  lockRef.current = lockAttributes;
 
   // Re-layout on structure change or nonce bump; ignore stale results.
   useEffect(() => {
@@ -106,7 +124,9 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
       setPositions(null);
       return;
     }
-    const nonceBumped = lastNonce.current !== null && lastNonce.current !== layoutNonce;
+    const algoChanged = lastAlgorithm.current !== layoutAlgorithm;
+    lastAlgorithm.current = layoutAlgorithm;
+    const nonceBumped = (lastNonce.current !== null && lastNonce.current !== layoutNonce) || algoChanged;
     const firstLayout = positionsRef.current === null;
     lastNonce.current = layoutNonce;
 
@@ -120,7 +140,7 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
     }
 
     const runId = ++lastRunId.current;
-    layoutDiagram(g, { saved })
+    layoutDiagram(g, { saved, algorithm: layoutAlgorithm ?? 'grid' })
       .then((result) => {
         if (runId !== lastRunId.current) return;
         setPositions(result);
@@ -132,7 +152,7 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
     return () => {
       // a newer run supersedes this one
     };
-  }, [signature, layoutNonce]);
+  }, [signature, layoutNonce, layoutAlgorithm]);
 
   // fitView after the freshly positioned nodes have been rendered/measured.
   useEffect(() => {
@@ -172,14 +192,62 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
     const moves = changes.filter((c) => c.type === 'position' && c.position);
     if (moves.length === 0) return;
     setPositions((prev) => {
+      const g = graphRef.current;
       if (!prev) return prev;
       const next = { ...prev };
       for (const c of moves) {
-        if (c.type === 'position' && c.position) next[c.id] = { x: c.position.x, y: c.position.y };
+        if (c.type !== 'position' || !c.position) continue;
+        const to = { x: c.position.x, y: c.position.y };
+        if (!g) {
+          next[c.id] = to;
+          continue;
+        }
+        Object.assign(next, applyLockedDrag(g, next, c.id, to, { lock: lockRef.current, alt: altRef.current }));
       }
       return next;
     });
   }, []);
+
+  const onNodeDragStart = useCallback((e: { altKey?: boolean }) => {
+    altRef.current = e.altKey === true;
+    dragStartRef.current = positionsRef.current ? { ...positionsRef.current } : null;
+  }, []);
+
+  const onNodeDragStop = useCallback(
+    (node: Node) => {
+      const g = graphRef.current;
+      let cur = positionsRef.current;
+      if (!g || !cur) return;
+      const dragged = g.nodes.find((n) => n.id === node.id);
+      if (dragged && lockRef.current && !(altRef.current && dragged.type === 'atribut')) {
+        const ownerId = dragged.type === 'atribut' && dragged.ownerNodeId ? dragged.ownerNodeId : dragged.id;
+        const delta = nudgeToFree(g, cur, ownerId);
+        if (delta) {
+          const shifted = { ...cur };
+          for (const n of g.nodes) {
+            const owner = n.type === 'atribut' && n.ownerNodeId ? n.ownerNodeId : n.id;
+            const p = cur[n.id];
+            if (owner === ownerId && p) shifted[n.id] = { x: p.x + delta.x, y: p.y + delta.y };
+          }
+          cur = shifted;
+          positionsRef.current = shifted;
+          setPositions(shifted);
+        }
+      }
+      const start = dragStartRef.current ?? {};
+      const moved: Record<string, Point> = {};
+      for (const [id, p] of Object.entries(cur)) {
+        const s = start[id];
+        if (!s || s.x !== p.x || s.y !== p.y) moved[id] = { x: p.x, y: p.y };
+      }
+      if (!(node.id in moved)) moved[node.id] = { x: node.position.x, y: node.position.y };
+      altRef.current = false;
+      dragStartRef.current = null;
+      if (onNodesMoved) onNodesMoved(moved);
+      else for (const [id, p] of Object.entries(moved)) onNodeMoved(id, p);
+    },
+    [onNodesMoved, onNodeMoved],
+  );
 
   // Stable while the interactive props are referentially stable; null when none is passed.
   const interaction = useMemo<InteractionProps | null>(() => {
@@ -203,13 +271,17 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
 
   return (
     <InteractionContext.Provider value={interaction}>
+    <EdgeGeometryProvider graph={graph}>
     <ReactFlow
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
-      onNodeDragStop={(_e, node) => onNodeMoved(node.id, { x: node.position.x, y: node.position.y })}
+      onNodeDragStart={(e) => onNodeDragStart(e)}
+      onNodeDragStop={(_e, node) => onNodeDragStop(node)}
+      snapToGrid={snapToGrid}
+      snapGrid={[10, 10]}
       onNodeClick={(_e, node) => onElementClick((node.data as PmovNodeData).node.elementId)}
       {...(onNodeDoubleClick
         ? { onNodeDoubleClick: (_e: unknown, node: Node) => onNodeDoubleClick((node.data as PmovNodeData).node), zoomOnDoubleClick: false }
@@ -223,9 +295,11 @@ const DiagramViewInner = forwardRef<DiagramViewHandle, DiagramViewProps>(functio
       proOptions={{ hideAttribution: true }}
       style={{ background: FILL }}
     >
+      {snapToGrid ? <Background variant={BackgroundVariant.Dots} gap={20} /> : null}
       <Controls showInteractive={false} />
       <MiniMap pannable zoomable nodeColor={FILL} nodeStrokeColor={STROKE} />
     </ReactFlow>
+    </EdgeGeometryProvider>
     </InteractionContext.Provider>
   );
 });

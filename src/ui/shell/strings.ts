@@ -30,6 +30,13 @@ export interface ShellStrings {
   importedFromModel: string;
   syntaxBanner: string;
   openText: string;
+  layout: string;
+  layoutGrid: string;
+  layoutFree: string;
+  attrLock: string;
+  attrLockTitle: string;
+  snap: string;
+  snapTitle: string;
 }
 
 export const SHELL_STRINGS: Record<Locale, ShellStrings> = {
@@ -62,6 +69,13 @@ export const SHELL_STRINGS: Record<Locale, ShellStrings> = {
     importedFromModel: 'Dijagram je uvezen iz modela; DSL tekst je generisan.',
     syntaxBanner: 'Dijagram ima sintaksne greške. Ispravite ih u tekstualnom režimu.',
     openText: 'Otvori tekst',
+    layout: 'Raspored',
+    layoutGrid: 'Mreža',
+    layoutFree: 'Slobodan',
+    attrLock: 'Atributi prate objekat',
+    attrLockTitle: 'Povlačenje objekta pomera i njegove atribute. Alt + prevuci: pomeri samo atribut',
+    snap: 'Poravnaj na mrežu',
+    snapTitle: 'Pomeranje se poravnava na mrežu od 10 px',
   },
   en: {
     examples: 'Examples',
@@ -92,5 +106,12 @@ export const SHELL_STRINGS: Record<Locale, ShellStrings> = {
     importedFromModel: 'The diagram was imported from the model; the DSL text was generated.',
     syntaxBanner: 'The diagram has syntax errors. Fix them in text mode.',
     openText: 'Open text',
+    layout: 'Layout',
+    layoutGrid: 'Grid',
+    layoutFree: 'Free',
+    attrLock: 'Attributes follow object',
+    attrLockTitle: 'Dragging an object also moves its attributes. Alt + drag: move only the attribute',
+    snap: 'Snap to grid',
+    snapTitle: 'Dragging snaps to a 10 px grid',
   },
 };

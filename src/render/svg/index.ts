@@ -2,7 +2,7 @@
 import { compile, formatDiagnostic } from '../../lang';
 import { buildDiagramGraph, estimateTextWidth } from '../graph';
 import type { DiagramGraph, PositionMap } from '../graph/types';
-import { boxOf, computeEdgeGeometry, type Box } from '../geometry';
+import { boxOf, computeDiagramGeometry, type Box } from '../geometry';
 import { layoutDiagram, layoutDiagramSync } from '../layout';
 import { EDGE_FONT_SIZE, ERROR_STROKE, ERROR_STROKE_WIDTH, FONT_FAMILY, STROKE, STROKE_WIDTH } from '../style';
 import { drawNode, paintFor } from './shapes';
@@ -35,12 +35,12 @@ export function graphToSvg(graph: DiagramGraph, positions: PositionMap, options:
   const background = options.background === undefined ? '#ffffff' : options.background;
   const errors = options.errorElementIds ?? new Set<string>();
 
-  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
-  const boxes = new Map<string, Box>();
+  const boxes: Record<string, Box> = {};
   for (const n of graph.nodes) {
     const p = positions[n.id] ?? { x: 0, y: 0 };
-    boxes.set(n.id, boxOf(n, p));
+    boxes[n.id] = boxOf(n, p);
   }
+  const geo = computeDiagramGeometry(graph, boxes);
 
   let minX = Infinity;
   let minY = Infinity;
@@ -52,17 +52,13 @@ export function graphToSvg(graph: DiagramGraph, positions: PositionMap, options:
     maxX = Math.max(maxX, x1);
     maxY = Math.max(maxY, y1);
   };
-  for (const b of boxes.values()) grow(b.x, b.y, b.x + b.width, b.y + b.height);
+  for (const b of Object.values(boxes)) grow(b.x, b.y, b.x + b.width, b.y + b.height);
 
   const edgeParts: string[] = [];
   const labelParts: string[] = [];
   for (const e of graph.edges) {
-    const sn = nodeById.get(e.source);
-    const tn = nodeById.get(e.target);
-    const sb = boxes.get(e.source);
-    const tb = boxes.get(e.target);
-    if (!sn || !tn || !sb || !tb) continue;
-    const g = computeEdgeGeometry(e, { node: sn, box: sb }, { node: tn, box: tb });
+    const g = geo[e.id];
+    if (!g) continue;
     const { stroke, strokeWidth } = paintFor(errors.has(e.elementId));
     for (const p of g.points) grow(p.x, p.y, p.x, p.y);
     const parts = [

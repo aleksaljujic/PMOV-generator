@@ -215,3 +215,54 @@ start at T22 so they don't collide with T21.
 
 - 2026-10-30: the user asked for one burger button instead of "Tekst | Interaktivno" (open = text, closed = interactive). Spec `feature_text2interactive.md` written; the user said "do it" after the one-agent plan, so the spec's default decisions are taken as accepted.
 - 2026-10-30 21:12: **Wave 11 complete.** Orchestrator verified: only `src/ui/shell/`, `README.md` and T38's own spec files changed; shell + architecture 74/74; `tsc -b --noEmit` clean; `npm run build` OK; full `vitest run` 634/647, all 13 failures are the pre-existing `src/render/layout/` ones. Two assertions changed with the removed control (`aria-pressed` on Tekst/Interaktivno → `aria-expanded` on ☰; EN "Interactive" button → "Hide text (Ctrl+B)"), same intent. "No re-fit on width change" is not enforced (lives in `src/render/flow`, untouched). Not verified: animation and <900 px layout in a browser. Not committed.
+
+## Wave 12: busy nodes (C05 C06 C07 C08, `spec/feature_dense_nodes.md`)
+
+**Model: Sonnet 5.5**. T39–T43 in parallel (one agent per folder), then T44 acceptance.
+
+| Session | Task | Folder | Started | Finished | Result | Agent log |
+|---|---|---|---|---|---|---|
+| orchestrator | Wave 0 | feature spec, C05/C06/C07/C08 additions, CHANGELOG, tasks T39–T44, 6 AGENT.md pointers, indexes, fallback `computeDiagramGeometry` in `src/render/geometry/index.ts`, baseline metrics + `T44-proizvodnja-before.svg` | 2026-11-04 01:05 | 2026-11-04 01:25 | ✅ done: `tsc -b --noEmit` clean; geometry + architecture 21/21 | – |
+| agent-T39 | Graph: size by degree | `src/render/graph/` | 2026-11-04 02:08 | 2026-11-04 02:09 | ✅ done (Sonnet 5.5): `sizeByDegree` in `build.ts` (`PORT_PITCH = 22`); n=13 unchanged, n=14 → 110×44, n=27 → h 85; agregacija grows only from n≥20 (base is the minimum); graph + architecture 20/20 | [T39.md](T39.md) |
+| agent-T40 | Geometry: ports + labels | `src/render/geometry/` | 2026-11-04 02:08 | 2026-11-04 02:10 | ✅ done (Sonnet 5.5): `computeDiagramGeometry` in `diagram.ts` + `ports.ts`, helpers moved to `base.ts`; 15 old tests unchanged + 8 new; geometry + architecture 29/29. Orchestrator timing: proizvodnja (107 edges) 0.6 ms/call | [T40.md](T40.md) |
+| agent-T41 | Layout: attribute fans | `src/render/layout/` | 2026-11-04 02:08 | 2026-11-04 02:16 | ✅ done (Sonnet 5.5): 13 red tests fixed (cause: `toPositions` double-added attribute padding; edge lengths from inflated sizes); `fan.ts` 1–4 sides, 2 rows when crowded; degree-scaled edge length; extra `pullVeza` step; one assertion relaxed in `checks.ts` (veza distance from inflated box, busy factor); layout + architecture 34/34 | [T41.md](T41.md) |
+| agent-T42 | SVG: diagram geometry | `src/render/svg/` | 2026-11-04 02:08 | 2026-11-04 02:09 | ✅ done (Sonnet 5.5): `graphToSvg` uses one `computeDiagramGeometry` call; spy test + all-examples parse test; svg + architecture 25/25; typecheck clean | [T42.md](T42.md) |
+| agent-T43 | Flow: diagram geometry | `src/render/flow/` | 2026-11-04 02:08 | 2026-11-04 02:10 | ✅ done (Sonnet 5.5): `edgeGeometry.tsx` provider (`useStore` over `nodeLookup`, equality by box) memoises `computeDiagramGeometry`; `PmovEdge` uses it, falls back to `computeEdgeGeometry`; public API unchanged; flow + architecture 36/36; typecheck clean | [T43.md](T43.md) |
+
+- 2026-11-04: the user showed a screenshot of a busy objekat (`RadniNalog`, ~17 attributes, ~10 relationships: starburst lines, labels under pills) and asked for a proposal. Proposal A (size by degree), B (ports), C (attributes on four sides), D (label collisions), E (compact view, out of scope). The user replied "approved"; the spec's default numbers (PORT_PITCH 22, 6 pills per row, 18/28/38 % label candidates) were set by the orchestrator.
+- Baseline (ELK, current code): proizvodnja label×label 5, label×core 11, label×attr 16, close endpoints 11; other examples ≤ 2 each. Table in the feature spec; script `spec/sessions/T44-baseline-metrics.ts.txt`.
+- Known before the wave: 13 red tests in `src/render/layout/` (pre-existing since earlier waves); T41 owns fixing them.
+- 2026-11-04 02:08: the user said "ok run it on sonnet 5.5". T39–T43 launched in parallel; T44 after they finish.
+- 2026-11-04 02:16: T39–T43 done. Orchestrator verified: `tsc -b --noEmit` clean; `vitest run` 667/667 (74 files; the 13 old layout failures are gone); `npm run build` OK. Metrics (ELK + `computeDiagramGeometry`, both edge ends counted): osnovni, specijalizacija, biblioteka, domeni all 0; proizvodnja label×label 3 (was 5), label×core 6 (was 11), label×attr 3 (was 16), close endpoints 2 (was 11). Done-when not met yet for proizvodnja (label×label, label×core, close endpoints). T44 held: the user is considering a different attribute rule (perpendicular lines only, box grows with attributes).
+- 2026-11-04: T44 superseded (not run): the user asked for a grid layout ("like mermaid") with locked attributes and attributes at 90°; proposal `spec/feature_grid_layout.md`, then "make tasks" → Wave 13.
+
+## Wave 13: grid layout, attribute cards, locked attributes (C05 C06 C08, `spec/feature_grid_layout.md`)
+
+**Model: Sonnet 5.5**. T45–T49 in parallel (one agent per folder), then T50 acceptance.
+
+| Session | Task | Folder | Started | Finished | Result | Agent log |
+|---|---|---|---|---|---|---|
+| orchestrator | Wave 0 | feature spec decisions, C05/C06/C08 additions, CHANGELOG, tasks T45–T50, T44 marked superseded, 6 AGENT.md pointers, indexes | 2026-11-04 | 2026-11-04 | ✅ done: no frozen code; checked that `src/fixtures/json.ts` sizes stay equal under the new rule | – |
+| agent-T45 | Graph: card sizing | `src/render/graph/` | 2026-11-04 02:24 | 2026-11-04 02:26 | ✅ done (Sonnet 5.5): `sizeCard` replaces `sizeByDegree`; `ATTR_ROW_PITCH`/`PORT_PITCH` exported; one assertion changed (main-example Radnik h 44 → 76, intended); graph + architecture 21/21. Its fixture-mismatch note was a false alarm (it compared MAIN Radnik with the tiny fixture; JSON_TINY Radnik stays 100×44; interchange 47/47, e2e 47/47) | [T45.md](T45.md) |
+| agent-T46 | Layout: grid + cards | `src/render/layout/` | 2026-11-04 02:24 | 2026-11-04 02:32 | ✅ done (Sonnet 5.5): `card.ts` (+`cardBoxes`), `grid.ts` (own ranks via `layerChoiceConstraint`: ELK 0.9.3 ignores it with MULTI_EDGE wrapping; 3 attempts: wrap → no wrap → sync rank layout), `free` unchanged; layout + architecture 57/57 | [T46.md](T46.md) |
+| agent-T47 | Geometry: stubs + card ports | `src/render/geometry/` | 2026-11-04 02:24 | 2026-11-04 02:26 | ✅ done (Sonnet 5.5): `stubs.ts` (90° stubs, excluded from ports), card ports top/bottom or in gaps between stub rows; geometry + architecture 32/32 | [T47.md](T47.md) |
+| agent-T48 | Flow: locked drag + snap | `src/render/flow/` | 2026-11-04 02:24 | 2026-11-04 02:26 | ✅ done (Sonnet 5.5): `drag.ts` (`applyLockedDrag`, `nudgeToFree`), DiagramView props `layoutAlgorithm`/`lockAttributes`/`snapToGrid`/`onNodesMoved`, snap 10 px + dots background; nudge only when locked and not Alt; drag wiring not DOM-tested (d3-drag in jsdom); flow + architecture 46/46; typecheck waits on T46 exports | [T48.md](T48.md) |
+| agent-T49 | Shell: layout controls | `src/ui/shell/` | 2026-11-04 02:24 | 2026-11-04 02:26 | ✅ done (Sonnet 5.5): storage keys `pmov.layout.v1`/`attrLock.v1`/`snap.v1`, toolbar select + 2 toggles (sr/en), `onNodesMoved` one history step, layout change clears positions (one step), README section; shell + architecture 84/84; typecheck/build wait on T46 exports | [T49.md](T49.md) |
+
+- 2026-11-04: the user said "make tasks" without answering the four open decisions; the recommended answers were taken (grid default, left/right attribute columns, pill drag while locked moves the card, no orthogonal relationship lines). Recorded in the feature spec §Decisions.
+- Wave 12 code (T39–T43) is not committed; Wave 13 builds on it in the same working tree. T45 replaces T39's size rule; T46 keeps T41's layout as `free`.
+- 2026-11-04 02:24: the user said "ok run them on sonnet 5.5". T45–T49 launched in parallel; T50 after they finish.
+- 2026-11-04 02:32: T45–T49 done. Orchestrator verified: `tsc -b --noEmit` clean; `vitest run` 714/714 (80 files); e2e 47/47; `npm run build` OK. Grid metrics: 0 card overlaps, 0 slanted stubs, 0 close endpoints except 1 in specijalizacija; 7 label overlaps left (osnovni 2, biblioteka 2, proizvodnja 4 incl. 1 label×label, domeni 2), mostly a label on its own source card: rank gap 60 px makes edges too short for the 45 % label rule. Grid SVG `T46-proizvodnja-grid.svg`; diagnostic script `T50-diag-metrics.ts.txt`. Fix round: T46 (layer gap for labelled edges) and T47 (more label candidates) resumed.
+- 2026-11-04 02:35: fix round done. T46: one global rank gap `max(60, 2.3·(textW/2+10) + 20)` from the longest core-edge label (ELK `nodeNodeBetweenLayers` + sync row gap); T47: extra label candidates (48/58 %, larger offsets). Orchestrator verified: `tsc` clean; `vitest run` 715/715; e2e 47/47; build OK. Grid metrics now 0 on every example for label×label, label×core, label×attr, card overlaps, slanted stubs; one close endpoint left (specijalizacija `Proizvod`: centred left stub and stacked `loopBottom` start at the same point). T47 resumed for that.
+- 2026-11-04 02:36: T47 fix 3 (loop/bus end on a stub → nearest gap). Orchestrator verified: all grid metrics 0 on every example (incl. close endpoints); `tsc` clean; `vitest run` 716/716. T50 launched (Sonnet 5.5).
+
+| Session | Task | Folder | Started | Finished | Result | Agent log |
+|---|---|---|---|---|---|---|
+| agent-T50 | Acceptance: grid layout | `e2e/` | 2026-11-04 02:36 | 2026-11-04 02:39 | ✅ done (Sonnet 5.5): `e2e/grid-layout.test.ts` (19 tests): all grid metrics 0 on 5 examples + synthetic 17-attr/10-veza model, locked drag/Alt/nudge, JSON round trip keeps pill offsets; `T50-proizvodnja-grid.svg`; no bugs in other folders | [T50.md](T50.md) |
+- 2026-11-04 02:39: **Wave 13 complete.** Orchestrator verified: e2e 65 passed + 1 skipped (the `PMOV_WRITE_SVG` writer); `vitest run` 716/716; `tsc -b --noEmit` clean; `npm run build` OK; changes only in the Wave 12/13 folders, `README.md` and `spec/`. `free` layout (kept as an option) still has overlaps on proizvodnja and the synthetic model (logged by T50, not asserted). Not verified: dragging, snapping and the toolbar controls in a real browser (d3-drag does not run in jsdom). Waves 12 and 13 not committed.
+
+## Wave 14: syntax help panel (C08)
+
+| Session | Task | Folder | Started | Finished | Result | Agent log |
+|---|---|---|---|---|---|---|
+| orchestrator | T51 | `src/ui/shell/`, `README.md` | 2026-11-24 | 2026-11-24 | ✅ done directly in the main session (small UI addition, no agent): "? Pomoć" button + F1 open a sr/en syntax drawer | [task](../tasks/T51-shell-syntax-help.md) |
